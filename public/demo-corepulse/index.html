@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CorePulse Web Demo</title>
+
+    <!-- Mock do pywebview para a demonstração web funcionar 100% autônoma -->
+    <script>
+      window.pywebview = {
+        api: {
+          get_telemetry: async function() {
+            // Gera dados vivos com pequenas oscilações para a demo parecer real
+            const cpuVar = 20 + Math.random() * 25;
+            const ramVar = 50 + Math.random() * 8;
+            return {
+              cpu: {
+                usage_percent: parseFloat(cpuVar.toFixed(1)),
+                clock_ghz: 4.2,
+                thread_count: 16,
+                process_count: 184
+              },
+              per_cpu: [22, 35, 14, 48, 19, 28, 41, 15],
+              memory: {
+                used_gb: 8.6,
+                total_gb: 16.0,
+                percent: parseFloat(ramVar.toFixed(1)),
+                available_gb: 7.4
+              },
+              disk: {
+                used_gb: 342,
+                total_gb: 512,
+                percent: 66.8,
+                free_gb: 170,
+                read_speed_mbps: parseFloat((Math.random() * 15).toFixed(1)),
+                write_speed_mbps: parseFloat((Math.random() * 8).toFixed(1))
+              },
+              network: {
+                download_speed_mbps: parseFloat((35 + Math.random() * 30).toFixed(1)),
+                upload_speed_mbps: parseFloat((8 + Math.random() * 6).toFixed(1))
+              },
+              gpu: {
+                name: 'NVIDIA GeForce RTX 4070',
+                usage_percent: parseFloat((25 + Math.random() * 20).toFixed(1)),
+                temperature_c: 58,
+                memory_used_gb: 4.1,
+                memory_total_gb: 12.0
+              },
+              temperatures: {
+                cpu_package: 54,
+                gpu: 58,
+                motherboard: 41
+              },
+              top_processes: [
+                { pid: 4812, name: 'Cyberpunk2077.exe', cpu_percent: 18.5, memory_percent: 24.2 },
+                { pid: 1024, name: 'chrome.exe', cpu_percent: 4.2, memory_percent: 8.1 },
+                { pid: 2190, name: 'Discord.exe', cpu_percent: 1.8, memory_percent: 3.4 },
+                { pid: 8904, name: 'Steam.exe', cpu_percent: 0.8, memory_percent: 1.5 }
+              ]
+            };
+          },
+          get_games: async function() {
+            return [
+              {
+                id: 'game-1',
+                title: 'Cyberpunk 2077',
+                exe_path: 'C:\\Games\\Cyberpunk 2077\\bin\\x64\\Cyberpunk2077.exe',
+                cover_url: '',
+                last_played: '2026-10-22',
+                optimizations: { ram_cleaner: true, high_priority: true, dgpu_enforce: true, disable_nagle: false }
+              },
+              {
+                id: 'game-2',
+                title: 'Forza Horizon 5',
+                exe_path: 'C:\\XboxGames\\Forza Horizon 5\\ForzaHorizon5.exe',
+                cover_url: '',
+                last_played: '2026-10-21',
+                optimizations: { ram_cleaner: true, high_priority: true, dgpu_enforce: true, disable_nagle: true }
+              },
+              {
+                id: 'game-3',
+                title: 'Counter-Strike 2',
+                exe_path: 'C:\\Steam\\steamapps\\common\\Counter-Strike Global Offensive\\game\\bin\\win64\\cs2.exe',
+                cover_url: '',
+                last_played: '2026-10-23',
+                optimizations: { ram_cleaner: false, high_priority: true, dgpu_enforce: true, disable_nagle: true }
+              }
+            ];
+          },
+          toggle_game_optimization: async function() { return true; },
+          apply_game_preset: async function() { return true; },
+          launch_game: async function(id) { alert('Modo Demo: Otimizações aplicadas com sucesso para o jogo!'); },
+          browse_and_add_game: async function() { return { success: false }; },
+          remove_game: async function() { return true; }
+        }
+      };
+    </script>
+
+    <script type="module" crossorigin src="./assets/index-ydNMVWaz.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-BmUcBjwQ.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
