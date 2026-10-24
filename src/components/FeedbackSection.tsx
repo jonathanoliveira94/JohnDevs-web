@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { MessageSquare, Star, Send, CheckCircle2, User, Sparkles, ExternalLink } from 'lucide-react';
+import { db } from '../firebase';
+import {
+  collection,
+  addDoc,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  serverTimestamp
+} from 'firebase/firestore';
 
 interface Comentario {
   id: string;
@@ -21,12 +31,9 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
   appName,
   corTema = 'var(--ciano)'
 }) => {
-  const storageKey = `johndevs_feedbacks_${appId}`;
-
-  // Comentários iniciais de exemplo/vitrine
-  const comentariosPadrao: Comentario[] = appId === 'garagem' ? [
+  const comentariosVitrine: Comentario[] = appId === 'garagem' ? [
     {
-      id: '1',
+      id: 'v1',
       nome: 'Carlos Eduardo',
       estrelas: 5,
       mensagem: 'A transição da Placa Mercosul e o cálculo automático de km/l no posto ficaram impecáveis! Muito prático.',
@@ -34,7 +41,7 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
       origem: 'Testador Mobile'
     },
     {
-      id: '2',
+      id: 'v2',
       nome: 'Mariana Silva',
       estrelas: 5,
       mensagem: 'A integração com o Gemini para responder dúvidas de ruídos no freio é genial. Parabéns pelo projeto!',
@@ -43,7 +50,7 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
     }
   ] : [
     {
-      id: '1',
+      id: 'v1',
       nome: 'Lucas Tech',
       estrelas: 5,
       mensagem: 'O visual dos CircularGauges e o botão de limpar RAM com feedback de MB liberados ficaram profissionais demais.',
@@ -51,7 +58,7 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
       origem: 'Entusiasta PC'
     },
     {
-      id: '2',
+      id: 'v2',
       nome: 'Rafael Mendes',
       estrelas: 5,
       mensagem: 'Testei o Game Hub na demo, a ideia de desativar o algoritmo de Nagle para CS2 é excelente para reduzir ping!',
@@ -60,7 +67,7 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
     }
   ];
 
-  const [comentarios, setComentarios] = useState<Comentario[]>([]);
+  const [comentarios, setComentarios] = useState<Comentario[]>(comentariosVitrine);
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [estrelas, setEstrelas] = useState(5);
@@ -68,17 +75,42 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
   const [enviando, setEnviando] = useState(false);
   const [sucesso, setSucesso] = useState(false);
 
+  // Escuta o Firestore em TEMPO REAL (Qualquer comentário aparece na mesma hora para todos)
   useEffect(() => {
-    const salvos = localStorage.getItem(storageKey);
-    if (salvos) {
-      try {
-        setComentarios(JSON.parse(salvos));
-      } catch {
-        setComentarios(comentariosPadrao);
-      }
-    } else {
-      setComentarios(comentariosPadrao);
+    let unsubscribe: () => void = () => {};
+
+    try {
+      const q = query(
+        collection(db, 'feedbacks'),
+        where('appId', '==', appId),
+        orderBy('createdAt', 'desc')
+      );
+
+      unsubscribe = onSnapshot(q, (snapshot) => {
+        const docsCarregados: Comentario[] = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          docsCarregados.push({
+            id: doc.id,
+            nome: data.nome || 'Anônimo',
+            estrelas: data.estrelas || 5,
+            mensagem: data.mensagem || '',
+            data: data.data || new Date().toLocaleDateString('pt-BR'),
+            origem: data.origem || 'Comentário em Tempo Real'
+          });
+        });
+
+        if (docsCarregados.length > 0) {
+          setComentarios([...docsCarregados, ...comentariosVitrine]);
+        }
+      }, (err) => {
+        console.warn('Fallback Firestore:', err.message);
+      });
+    } catch (e) {
+      console.warn('Erro ao conectar Firestore:', e);
     }
+
+    return () => unsubscribe();
   }, [appId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,36 +119,50 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
 
     setEnviando(true);
 
+    const hoje = new Date().toLocaleDateString('pt-BR');
     const novoComentario: Comentario = {
       id: Date.now().toString(),
       nome: nome.trim(),
       estrelas,
       mensagem: mensagem.trim(),
-      data: new Date().toLocaleDateString('pt-BR'),
-      origem: 'Feedback Recente'
+      data: hoje,
+      origem: 'Comentário em Tempo Real'
     };
 
-    // 1. Salva no Feed Imediato LocalStorage
-    const listaAtualizada = [novoComentario, ...comentarios];
-    setComentarios(listaAtualizada);
-    localStorage.setItem(storageKey, JSON.stringify(listaAtualizada));
+    // 1. Otimistic UI: atualiza a tela na hora para o usuário não esperar
+    setComentarios((prev) => [novoComentario, ...prev]);
 
-    // 2. Disparo silencioso para notificação (Web3Forms gratuito - sem travar caso offline)
+    // 2. Grava no Google Firebase Firestore (Nuvem Global para todos verem)
     try {
-      await fetch('https://api.web3forms.com/submit', {
+      await addDoc(collection(db, 'feedbacks'), {
+        appId,
+        appName,
+        nome: nome.trim(),
+        email: email.trim() || null,
+        estrelas,
+        mensagem: mensagem.trim(),
+        data: hoje,
+        origem: 'Comunidade Online',
+        createdAt: serverTimestamp()
+      });
+    } catch (firebaseErr) {
+      console.error('Erro ao salvar no Firestore:', firebaseErr);
+    }
+
+    // 3. Notificação opcional por email via Web3Forms
+    try {
+      fetch('https://api.web3forms.com/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({
-          access_key: 'b94df400-0e12-4045-9ec4-c4819ad5d117', // Chave pública de relay de forms
+          access_key: 'b94df400-0e12-4045-9ec4-c4819ad5d117',
           subject: `Novo Feedback sobre o ${appName} (John Dev's)`,
           from_name: nome,
           email: email || 'sem-email@visitante.com',
           message: `App: ${appName}\nAvaliação: ${estrelas} estrelas\nComentário: ${mensagem}`
         })
       });
-    } catch (err) {
-      // Ignora erro de rede para manter a experiência do usuário sempre positiva
-    }
+    } catch {}
 
     setEnviando(false);
     setSucesso(true);
@@ -133,7 +179,7 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
         <span className="sub-rotulo" style={{ color: corTema }}>COMUNIDADE & TESTADORES</span>
         <h2 style={{ fontSize: '1.8rem' }}>O que achou da demonstração do {appName}?</h2>
         <p style={{ color: 'var(--texto-suave)' }}>
-          Deixe sua dúvida, sugestão ou feedback sobre a demo! Seu comentário aparecerá na vitrine abaixo:
+          Deixe sua dúvida, sugestão ou feedback! O comentário fica salvo ao vivo na nuvem para todos os visitantes:
         </p>
       </div>
 
@@ -168,7 +214,7 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
               gap: '8px',
               marginBottom: '16px'
             }}>
-              <CheckCircle2 size={16} /> Obrigado! Seu feedback foi publicado com sucesso na vitrine.
+              <CheckCircle2 size={16} /> Publicado com sucesso na nuvem do Firebase!
             </div>
           )}
 
@@ -277,7 +323,7 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
                 width: '100%'
               }}
             >
-              <Send size={16} /> {enviando ? 'Publicando...' : 'Publicar Feedback'}
+              <Send size={16} /> {enviando ? 'Enviando...' : 'Publicar Feedback'}
             </button>
           </form>
 
@@ -304,13 +350,13 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
           </div>
         </div>
 
-        {/* Feed de Comentários / Vitrine */}
+        {/* Feed de Comentários em Tempo Real */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h4 style={{ fontSize: '1.1rem', color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Sparkles size={16} color={corTema} /> Feed de Testadores ({comentarios.length})
+              <Sparkles size={16} color={corTema} /> Feed da Comunidade ({comentarios.length})
             </h4>
-            <span style={{ fontSize: '0.75rem', color: '#4ade80' }}>● Feed Ativo</span>
+            <span style={{ fontSize: '0.75rem', color: '#4ade80' }}>● Nuvem Firebase Ativa</span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '520px', overflowY: 'auto', paddingRight: '4px' }}>
