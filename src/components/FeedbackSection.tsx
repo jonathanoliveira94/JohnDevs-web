@@ -6,7 +6,6 @@ import {
   addDoc,
   query,
   where,
-  orderBy,
   onSnapshot,
   serverTimestamp
 } from 'firebase/firestore';
@@ -80,10 +79,10 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
     let unsubscribe: () => void = () => {};
 
     try {
+      // Busca simplificada direta para não depender de índice composto no Firestore
       const q = query(
         collection(db, 'feedbacks'),
-        where('appId', '==', appId),
-        orderBy('createdAt', 'desc')
+        where('appId', '==', appId)
       );
 
       unsubscribe = onSnapshot(q, (snapshot) => {
@@ -100,9 +99,10 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
           });
         });
 
-        if (docsCarregados.length > 0) {
-          setComentarios([...docsCarregados, ...comentariosVitrine]);
-        }
+        // Ordena no frontend pelos mais recentes
+        docsCarregados.reverse();
+
+        setComentarios([...docsCarregados, ...comentariosVitrine]);
       }, (err) => {
         console.warn('Fallback Firestore:', err.message);
       });
