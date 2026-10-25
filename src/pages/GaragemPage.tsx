@@ -25,6 +25,30 @@ import {
 } from 'lucide-react';
 import { FeedbackSection } from '../components/FeedbackSection';
 
+// ============================================================
+// DESIGN SYSTEM TOKENS (Fiel ao ReactDesignSystem.kt / Jetpack Compose)
+// ============================================================
+const Zinc950 = '#09090B';
+const Zinc900 = '#18181B';
+const Zinc850 = '#1F1F23';
+const Zinc800 = '#27272A';
+const Zinc700 = '#3F3F46';
+const Zinc500 = '#71717A';
+const Zinc400 = '#A1A1AA';
+const Zinc300 = '#D4D4D8';
+const Zinc200 = '#E4E4E7';
+const Zinc50  = '#FAFAFA';
+
+const Crimson600 = '#E11D48';
+const Crimson500 = '#F43F5E';
+const CrimsonGlow = '#4C0519';
+
+const Emerald500 = '#10B981';
+const Emerald400 = '#34D399';
+const Amber400   = '#FBBF24';
+const Sky400     = '#38BDF8';
+const Violet500  = '#8B5CF6';
+
 interface ScreenShotSlide {
   id: string;
   titulo: string;
@@ -37,6 +61,7 @@ interface ScreenShotSlide {
 }
 
 interface Veiculo {
+  id: number;
   nome: string;
   sub: string;
   tipo: string;
@@ -49,111 +74,169 @@ interface Veiculo {
 }
 
 export const GaragemPage: React.FC = () => {
-  // Estado da Apresentação de Telas
+  // Slides da Apresentação
   const [slideAtual, setSlideAtual] = useState<number>(0);
 
-  // Estados do Simulador Mobile v2.0
+  // Estados do Simulador do Celular
   const [veiculoIndex, setVeiculoIndex] = useState<number>(0);
   const [ocultarSaldo, setOcultarSaldo] = useState<boolean>(false);
   const [mostrarHistorico, setMostrarHistorico] = useState<boolean>(false);
-  const [abaHistorico, setAbaHistorico] = useState<'abastecer' | 'manutencao'>('abastecer');
-  const [modalTipo, setModalTipo] = useState<'sheetAcoes' | 'abastecer' | 'manutencao' | 'gemini' | null>(null);
+  const [abaHistorico, setAbaHistorico] = useState<'abastecimentos' | 'manutencoes'>('abastecimentos');
+  
+  // Navegação no Simulador: 'garagem' | 'financas' | 'ajustes'
+  const [rotaAtual, setRotaAtual] = useState<'garagem' | 'financas' | 'ajustes'>('garagem');
 
-  // Inputs para inserção rápida
-  const [litros, setLitros] = useState<string>('42.0');
-  const [precoLitro, setPrecoLitro] = useState<string>('5.89');
-  const [tipoCombustivel, setTipoCombustivel] = useState<string>('Gasolina');
+  // Modais / Sheets
+  const [modalAberto, setModalAberto] = useState<'sheetAcoes' | 'novoAbast' | 'novaManut' | 'chatGemini' | null>(null);
+
+  // Form Inputs para Novo Abastecimento
+  const [litrosInput, setLitrosInput] = useState<string>('42.0');
+  const [precoInput, setPrecoInput] = useState<string>('5.89');
+  const [kmInput, setKmInput] = useState<string>('48.450');
+  const [combustivelSel, setCombustivelSel] = useState<string>('Gasolina');
+  const [tanqueCheio, setTanqueCheio] = useState<boolean>(true);
+
+  // Form Inputs para Nova Manutenção
   const [manutDesc, setManutDesc] = useState<string>('Troca Óleo Sintético 5W40 + Filtros');
-  const [manutValor, setManutValor] = useState<string>('340.00');
+  const [manutPecas, setManutPecas] = useState<string>('240.00');
+  const [manutMaoObra, setManutMaoObra] = useState<string>('100.00');
+  const [manutTipo] = useState<string>('Preventiva');
 
-  // Chat Gemini Mock
-  const [chatInput, setChatInput] = useState<string>('');
-  const [chatMsgs, setChatMsgs] = useState<Array<{ remetente: 'user' | 'ia'; texto: string }>>([
+  // Chat Gemini
+  const [chatTexto, setChatTexto] = useState<string>('');
+  const [chatMensagens, setChatMensagens] = useState<Array<{ remetente: 'user' | 'ia'; texto: string }>>([
     { remetente: 'ia', texto: 'Olá! Sou o Mecânico Virtual Garagem IA. Descreva barulhos, sintomas no painel ou dúvidas de manutenção para um diagnóstico preliminar.' }
   ]);
 
-  const [historicoAbast, setHistoricoAbast] = useState([
-    { id: 1, data: '22/10/2026', litros: '41.2 L', desc: 'Posto Shell • R$ 5,79/L', valor: 'R$ 238,55', consumo: '13.9 km/L' },
-    { id: 2, data: '08/10/2026', litros: '43.0 L', desc: 'Posto Ipiranga • R$ 5,85/L', valor: 'R$ 251,55', consumo: '13.4 km/L' }
-  ]);
-
-  const [historicoManut, setHistoricoManut] = useState([
-    { id: 1, data: '15/10/2026', desc: 'Alinhamento & Balanceamento 3D', tags: ['Preventiva'], valor: 'R$ 140,00' },
-    { id: 2, data: '02/09/2026', desc: 'Troca de Pastilhas Dianteiras Bosch', tags: ['Peças', 'Freios'], valor: 'R$ 280,00' }
-  ]);
-
+  // Lista de Veículos Fiel ao App
   const veiculos: Veiculo[] = [
-    { nome: 'Golf TSI 1.4', sub: '48.250 km', tipo: 'CARRO', ano: '2021', placa: 'BRA·2E19', consumo: 13.8, autonomia: 690, custoKm: 0.42, saldo: 630.10 },
-    { nome: 'Civic Touring', sub: '32.180 km', tipo: 'CARRO', ano: '2022', placa: 'JOH·7D26', consumo: 11.4, autonomia: 535, custoKm: 0.51, saldo: 420.00 },
-    { nome: 'Yamaha MT-07', sub: '12.400 km', tipo: 'MOTO', ano: '2023', placa: 'DEV·9X44', consumo: 21.5, autonomia: 300, custoKm: 0.27, saldo: 180.50 }
+    { id: 1, nome: 'Golf TSI 1.4', sub: '48.250 km', tipo: 'CARRO', ano: '2021', placa: 'BRA·2E19', consumo: 13.8, autonomia: 690, custoKm: 0.42, saldo: 630.10 },
+    { id: 2, nome: 'Civic Touring', sub: '32.180 km', tipo: 'CARRO', ano: '2022', placa: 'JOH·7D26', consumo: 11.4, autonomia: 535, custoKm: 0.51, saldo: 420.00 },
+    { id: 3, nome: 'Yamaha MT-07', sub: '12.400 km', tipo: 'MOTO', ano: '2023', placa: 'DEV·9X44', consumo: 21.5, autonomia: 300, custoKm: 0.27, saldo: 180.50 }
   ];
 
   const veiculo = veiculos[veiculoIndex];
 
-  const handleEnviarChat = () => {
-    if (!chatInput.trim()) return;
-    const msg = chatInput.trim();
-    setChatMsgs((prev) => [...prev, { remetente: 'user', texto: msg }]);
-    setChatInput('');
+  // Histórico de Abastecimentos
+  const [abastecimentos, setAbastecimentos] = useState([
+    { id: 1, data: '22/10/2026', km: '48.250', litros: '41.2 L', desc: 'Gasolina • R$ 5,79/L', valor: 'R$ 238,55', consumo: '13.9 km/L' },
+    { id: 2, data: '08/10/2026', km: '47.680', litros: '43.0 L', desc: 'Gasolina • R$ 5,85/L', valor: 'R$ 251,55', consumo: '13.4 km/L' },
+    { id: 3, data: '20/09/2026', km: '47.100', litros: '40.5 L', desc: 'Gasolina • R$ 5,90/L', valor: 'R$ 238,95', consumo: '14.1 km/L' }
+  ]);
+
+  // Histórico de Manutenções
+  const [manutencoes, setManutencoes] = useState([
+    { id: 1, data: '15/10/2026', km: '48.100', desc: 'Alinhamento & Balanceamento 3D', tags: ['Preventiva'], valor: 'R$ 140,00' },
+    { id: 2, data: '02/09/2026', km: '46.800', desc: 'Troca de Pastilhas Dianteiras Bosch', tags: ['Peças', 'Freios'], valor: 'R$ 280,00' },
+    { id: 3, data: '12/07/2026', km: '43.500', desc: 'Troca de Óleo 5W40 + Filtro de Ar e Óleo', tags: ['Troca de Óleo'], valor: 'R$ 310,00' }
+  ]);
+
+  const handleSalvarAbastecimento = () => {
+    if (!litrosInput || !precoInput) return;
+    const l = parseFloat(litrosInput);
+    const p = parseFloat(precoInput);
+    const tot = (l * p).toFixed(2).replace('.', ',');
+    setAbastecimentos([
+      {
+        id: Date.now(),
+        data: 'Hoje',
+        km: kmInput || '48.450',
+        litros: `${l.toFixed(1)} L`,
+        desc: `${combustivelSel} • R$ ${p.toFixed(2).replace('.', ',')}/L`,
+        valor: `R$ ${tot}`,
+        consumo: `${veiculo.consumo.toFixed(1)} km/L`
+      },
+      ...abastecimentos
+    ]);
+    setModalAberto(null);
+  };
+
+  const handleSalvarManutencao = () => {
+    if (!manutDesc) return;
+    const pecas = parseFloat(manutPecas) || 0;
+    const mo = parseFloat(manutMaoObra) || 0;
+    const tot = (pecas + mo).toFixed(2).replace('.', ',');
+    setManutencoes([
+      {
+        id: Date.now(),
+        data: 'Hoje',
+        km: kmInput || '48.450',
+        desc: manutDesc,
+        tags: [manutTipo],
+        valor: `R$ ${tot}`
+      },
+      ...manutencoes
+    ]);
+    setModalAberto(null);
+  };
+
+  const handleEnviarMensagemChat = () => {
+    if (!chatTexto.trim()) return;
+    const texto = chatTexto.trim();
+    setChatMensagens((prev) => [...prev, { remetente: 'user', texto }]);
+    setChatTexto('');
     setTimeout(() => {
-      setChatMsgs((prev) => [
+      setChatMensagens((prev) => [
         ...prev,
         {
           remetente: 'ia',
-          texto: `Diagnóstico inteligente: Verifiquei o sintoma relatado ("${msg}"). Para o ${veiculo.nome}, o comportamento indica desgaste normal de componentes de atrito ou calibração. Sugiro conferir a quilometragem recomendada no manual ou registrar uma inspeção preventiva!`
+          texto: `Análise Garagem IA: Para o seu ${veiculo.nome}, o sintoma ("${texto}") sugere conferência do nível de fluido e desgaste mecânico. Recomendo registrar uma inspeção preventiva na oficina cadastrada!`
         }
       ]);
     }, 600);
   };
 
-  const handleSalvarAbastecer = () => {
-    if (!litros || !precoLitro) return;
-    const total = (parseFloat(litros) * parseFloat(precoLitro)).toFixed(2).replace('.', ',');
-    setHistoricoAbast([
-      {
-        id: Date.now(),
-        data: 'Hoje',
-        litros: `${litros} L`,
-        desc: `${tipoCombustivel} • R$ ${precoLitro}/L`,
-        valor: `R$ ${total}`,
-        consumo: `${veiculo.consumo.toFixed(1)} km/L`
-      },
-      ...historicoAbast
-    ]);
-    setModalTipo(null);
-  };
+  // Componente Placa Mercosul Fiel
+  const renderPlacaMercosul = (placa: string) => (
+    <div style={{
+      background: '#FFFFFF',
+      borderRadius: '6px',
+      border: `1.5px solid ${Zinc300}`,
+      overflow: 'hidden',
+      display: 'inline-flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+    }}>
+      <div style={{
+        background: '#003399',
+        color: '#FFFFFF',
+        fontSize: '0.45rem',
+        fontWeight: 900,
+        letterSpacing: '1.2px',
+        padding: '1px 8px',
+        width: '100%',
+        textAlign: 'center'
+      }}>
+        BRASIL
+      </div>
+      <div style={{
+        color: '#111827',
+        fontSize: '0.9rem',
+        fontWeight: 900,
+        fontFamily: 'Courier New, monospace',
+        letterSpacing: '1.8px',
+        padding: '1px 8px'
+      }}>
+        {placa}
+      </div>
+    </div>
+  );
 
-  const handleSalvarManutencao = () => {
-    if (!manutDesc || !manutValor) return;
-    setHistoricoManut([
-      {
-        id: Date.now(),
-        data: 'Hoje',
-        desc: manutDesc,
-        tags: ['Preventiva'],
-        valor: `R$ ${parseFloat(manutValor).toFixed(2).replace('.', ',')}`
-      },
-      ...historicoManut
-    ]);
-    setModalTipo(null);
-  };
-
-  // ============================================================
-  // MOLDURA DO SMARTPHONE ANDROID SIMULADO (ESTILO V2.0)
-  // ============================================================
+  // Moldura Smartphone para a Vitrine
   const molduraSmartphoneSimulado = (conteudo: React.ReactNode) => (
     <div style={{
       width: '100%',
       maxWidth: '290px',
-      height: '475px',
-      background: '#09090B',
+      height: '480px',
+      background: Zinc950,
       borderRadius: '34px',
-      border: '7px solid #1F1F23',
+      border: `7px solid ${Zinc850}`,
       position: 'relative',
       overflow: 'hidden',
       display: 'flex',
       flexDirection: 'column',
-      boxShadow: '0 16px 40px rgba(0,0,0,0.85), 0 0 25px rgba(225,29,72,0.22)',
+      boxShadow: `0 16px 40px rgba(0,0,0,0.85), 0 0 25px rgba(225,29,72,0.25)`,
       margin: '0 auto'
     }}>
       {/* Notch */}
@@ -171,113 +254,109 @@ export const GaragemPage: React.FC = () => {
         alignItems: 'center',
         justifyContent: 'center'
       }}>
-        <div style={{ width: '6px', height: '6px', background: '#27272A', borderRadius: '50%' }}></div>
+        <div style={{ width: '6px', height: '6px', background: Zinc800, borderRadius: '50%' }}></div>
       </div>
-      {/* Conteúdo da Tela */}
+      {/* Conteúdo */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {conteudo}
       </div>
     </div>
   );
 
-  // ============================================================
-  // SLIDES DA APRESENTAÇÃO ATUALIZADOS PARA O DESIGN SYSTEM V2.0
-  // ============================================================
+  // Slides da Apresentação
   const slides: ScreenShotSlide[] = [
     {
       id: 'cockpit',
       titulo: 'DashboardGaragem.kt (Cockpit Bento v2.0)',
       subtitulo: 'Hero Card Bento Grid + Paleta Zinc/Crimson + Medidor Circular Vivo.',
       icone: Car,
-      tag: 'NOVA UX V2.0',
-      descricaoCurta: 'Completamente reformulado com inspiração em React, Tailwind e shadcn/ui. Traz a elegante paleta Zinc (950/900/800) com acento Crimson/Rose (#E11D48), Bento Grid e cards dinâmicos com cantos arredondados.',
+      tag: 'NOVA UX NATIVA V2.0',
+      descricaoCurta: 'Construído rigorosamente segundo o ReactDesignSystem.kt do apk Android. A interface traz a paleta profunda Zinc 950 com acento Crimson 600 (#E11D48), Bento Grid e cards com cantos de 22dp.',
       destaques: [
-        'TopBar Cockpit com badge de versão v2.0 e status online',
-        'Pills de seleção de frota com detecção de Carro e Moto',
-        'Bento Hero com Placa Mercosul formatada e despesas protegidas',
-        '3 Indicadores em Grid: Gauge circular de consumo, autonomia e custo/km'
+        'TopBar Cockpit com foto de perfil, dot de status verde (#10B981) e badge v2.0',
+        'Pills horizontais para troca instantânea de veículos na frota',
+        'Bento Hero com Placa Mercosul autêntica (BRASIL) e saldo protegido',
+        '3 Indicadores em Grid: Gauge circular de consumo (km/L), autonomia e custo/km'
       ],
       renderVisual: () => molduraSmartphoneSimulado(
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#09090B', color: '#FAFAFA' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: Zinc950, color: Zinc50 }}>
           {/* Header Cockpit */}
-          <div style={{ background: 'linear-gradient(180deg, #1C0A10 0%, #09090B 100%)', padding: '22px 12px 8px', borderBottom: '1px solid #18181B' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: '#A1A1AA', marginBottom: '8px' }}>
-              <span>19:40</span>
+          <div style={{ background: `linear-gradient(180deg, ${CrimsonGlow} 0%, ${Zinc950} 100%)`, padding: '22px 14px 10px', borderBottom: `1px solid ${Zinc900}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: Zinc400, marginBottom: '8px' }}>
+              <span>19:45</span>
               <div style={{ display: 'flex', gap: '4px' }}><Wifi size={10} /><BatteryCharging size={10} /></div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ position: 'relative' }}>
-                  <img src="/assets/john-persona.jfif" alt="Avatar" style={{ width: '32px', height: '32px', borderRadius: '10px', border: '1.5px solid #E11D48', objectFit: 'cover' }} />
-                  <span style={{ position: 'absolute', bottom: -1, right: -1, width: '7px', height: '7px', borderRadius: '50%', background: '#10B981', border: '1px solid #09090B' }}></span>
+                  <img src="/assets/john-persona.jfif" alt="Avatar" style={{ width: '34px', height: '34px', borderRadius: '10px', border: `1.5px solid ${Crimson500}`, objectFit: 'cover' }} />
+                  <span style={{ position: 'absolute', bottom: -1, right: -1, width: '7px', height: '7px', borderRadius: '50%', background: Emerald500, border: `1px solid ${Zinc950}` }}></span>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.52rem', color: '#A1A1AA', letterSpacing: '0.8px', fontWeight: 700 }}>GARAGEM COCKPIT</div>
+                  <div style={{ fontSize: '0.52rem', color: Zinc400, letterSpacing: '1px', fontWeight: 800 }}>GARAGEM COCKPIT</div>
                   <div style={{ fontSize: '0.85rem', fontWeight: 800 }}>Olá, Jonathan</div>
                 </div>
               </div>
-              <span style={{ background: 'rgba(225,29,72,0.18)', color: '#F43F5E', fontSize: '0.55rem', fontWeight: 800, padding: '2px 6px', borderRadius: '999px', border: '1px solid rgba(225,29,72,0.35)' }}>v2.0</span>
+              <span style={{ background: 'rgba(225,29,72,0.18)', color: Crimson500, fontSize: '0.55rem', fontWeight: 800, padding: '2px 6px', borderRadius: '999px', border: '1px solid rgba(225,29,72,0.35)' }}>v2.0</span>
             </div>
 
             {/* Pills de Frota */}
-            <div style={{ display: 'flex', gap: '5px', marginTop: '10px' }}>
-              <span style={{ background: 'rgba(225,29,72,0.2)', border: '1px solid #E11D48', color: '#FAFAFA', padding: '3px 8px', borderRadius: '8px', fontSize: '0.6rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Car size={10} color="#E11D48" /> Golf TSI
+            <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
+              <span style={{ background: 'rgba(225,29,72,0.2)', border: `1px solid ${Crimson500}`, color: Zinc50, padding: '3px 8px', borderRadius: '8px', fontSize: '0.6rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Car size={10} color={Crimson500} /> Golf TSI
               </span>
-              <span style={{ background: '#18181B', border: '1px solid #27272A', color: '#A1A1AA', padding: '3px 8px', borderRadius: '8px', fontSize: '0.6rem' }}>Civic</span>
-              <span style={{ background: '#18181B', border: '1px solid #27272A', color: '#A1A1AA', padding: '3px 8px', borderRadius: '8px', fontSize: '0.6rem' }}>MT-07</span>
+              <span style={{ background: Zinc900, border: `1px solid ${Zinc800}`, color: Zinc400, padding: '3px 8px', borderRadius: '8px', fontSize: '0.6rem' }}>Civic</span>
+              <span style={{ background: Zinc900, border: `1px solid ${Zinc800}`, color: Zinc400, padding: '3px 8px', borderRadius: '8px', fontSize: '0.6rem' }}>MT-07</span>
             </div>
           </div>
 
           {/* Bento Grid */}
           <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflowY: 'hidden' }}>
             {/* Bento Hero Card */}
-            <div style={{ background: 'linear-gradient(145deg, #1A1215 0%, #121215 100%)', borderRadius: '14px', border: '1px solid #27272A', padding: '10px' }}>
+            <div style={{ background: `linear-gradient(145deg, #221317 0%, ${Zinc900} 50%, #121215 100%)`, borderRadius: '14px', border: `1px solid ${Zinc800}`, padding: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <div style={{ display: 'flex', gap: '4px', marginBottom: '2px' }}>
-                    <span style={{ background: 'rgba(14,165,233,0.15)', color: '#38BDF8', fontSize: '0.5rem', fontWeight: 800, padding: '1px 5px', borderRadius: '999px' }}>CARRO</span>
-                    <span style={{ background: '#27272A', color: '#A1A1AA', fontSize: '0.5rem', fontWeight: 600, padding: '1px 5px', borderRadius: '999px' }}>2021</span>
+                    <span style={{ background: 'rgba(14,165,233,0.15)', color: Sky400, fontSize: '0.5rem', fontWeight: 800, padding: '1px 5px', borderRadius: '999px' }}>CARRO</span>
+                    <span style={{ background: Zinc800, color: Zinc400, fontSize: '0.5rem', fontWeight: 600, padding: '1px 5px', borderRadius: '999px' }}>2021</span>
                   </div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 900 }}>Golf TSI 1.4</div>
-                  <div style={{ fontSize: '0.6rem', color: '#71717A' }}>48.250 km rodados</div>
-                  {/* Placa Mercosul formatada */}
-                  <div style={{ marginTop: '5px', background: '#fff', borderRadius: '4px', overflow: 'hidden', display: 'inline-block' }}>
-                    <div style={{ background: '#003399', color: '#fff', fontSize: '0.35rem', fontWeight: 900, padding: '1px 6px', textAlign: 'center' }}>BRASIL</div>
-                    <div style={{ color: '#09090B', fontSize: '0.72rem', fontWeight: 900, padding: '0 6px', fontFamily: 'Courier New' }}>BRA·2E19</div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 900 }}>Golf TSI 1.4</div>
+                  <div style={{ fontSize: '0.6rem', color: Zinc400 }}>48.250 km rodados</div>
+                  <div style={{ marginTop: '5px' }}>
+                    {renderPlacaMercosul('BRA·2E19')}
                   </div>
                 </div>
-                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#1F1F23', border: '1px solid #27272A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Car size={18} color="#F43F5E" />
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: Zinc850, border: `1px solid ${Zinc800}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Car size={20} color={Crimson500} />
                 </div>
               </div>
 
               {/* Box interno de gastos */}
-              <div style={{ background: 'rgba(9,9,11,0.7)', borderRadius: '10px', padding: '6px 8px', marginTop: '8px', border: '1px solid #1F1F23', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ background: 'rgba(9,9,11,0.7)', borderRadius: '10px', padding: '6px 8px', marginTop: '8px', border: `1px solid ${Zinc800}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: '0.5rem', color: '#71717A', fontWeight: 700 }}>DESPESAS DO MÊS</div>
-                  <div style={{ color: '#FAFAFA', fontSize: '0.95rem', fontWeight: 900 }}>R$ 630,10</div>
+                  <div style={{ fontSize: '0.5rem', color: Zinc400, fontWeight: 700 }}>DESPESAS DO MÊS</div>
+                  <div style={{ color: Zinc50, fontSize: '0.95rem', fontWeight: 900 }}>R$ 630,10</div>
                 </div>
-                <span style={{ fontSize: '0.55rem', background: '#E11D48', color: '#fff', padding: '3px 7px', borderRadius: '6px', fontWeight: 700 }}>Timeline</span>
+                <span style={{ fontSize: '0.55rem', background: Crimson600, color: '#fff', padding: '3px 7px', borderRadius: '6px', fontWeight: 700 }}>Histórico</span>
               </div>
             </div>
 
-            {/* 3 Bento Indicadores */}
+            {/* 3 Indicadores Bento */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
-              <div style={{ background: '#18181B', borderRadius: '10px', border: '1px solid #27272A', padding: '6px 4px', textAlign: 'center' }}>
-                <span style={{ fontSize: '0.5rem', color: '#34D399', background: 'rgba(16,185,129,0.12)', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>Ótimo</span>
-                <div style={{ fontSize: '0.82rem', fontWeight: 900, color: '#FAFAFA', marginTop: '2px' }}>13.8</div>
-                <div style={{ fontSize: '0.48rem', color: '#71717A' }}>km/L</div>
+              <div style={{ background: Zinc900, borderRadius: '10px', border: `1px solid ${Zinc800}`, padding: '6px 4px', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.5rem', color: Emerald400, background: 'rgba(16,185,129,0.12)', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>Ótimo</span>
+                <div style={{ fontSize: '0.85rem', fontWeight: 900, color: Zinc50, marginTop: '2px' }}>13.8</div>
+                <div style={{ fontSize: '0.48rem', color: Zinc400 }}>km/L</div>
               </div>
-              <div style={{ background: '#18181B', borderRadius: '10px', border: '1px solid #27272A', padding: '6px 4px', textAlign: 'center' }}>
-                <span style={{ fontSize: '0.5rem', color: '#38BDF8', background: 'rgba(14,165,233,0.12)', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>Tanque</span>
-                <div style={{ fontSize: '0.82rem', fontWeight: 900, color: '#FAFAFA', marginTop: '2px' }}>690 km</div>
-                <div style={{ fontSize: '0.48rem', color: '#71717A' }}>Autonomia</div>
+              <div style={{ background: Zinc900, borderRadius: '10px', border: `1px solid ${Zinc800}`, padding: '6px 4px', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.5rem', color: Sky400, background: 'rgba(14,165,233,0.12)', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>Tanque</span>
+                <div style={{ fontSize: '0.85rem', fontWeight: 900, color: Zinc50, marginTop: '2px' }}>690 km</div>
+                <div style={{ fontSize: '0.48rem', color: Zinc400 }}>Autonomia</div>
               </div>
-              <div style={{ background: '#18181B', borderRadius: '10px', border: '1px solid #27272A', padding: '6px 4px', textAlign: 'center' }}>
-                <span style={{ fontSize: '0.5rem', color: '#FBBF24', background: 'rgba(245,158,11,0.12)', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>Média</span>
-                <div style={{ fontSize: '0.82rem', fontWeight: 900, color: '#FAFAFA', marginTop: '2px' }}>R$ 0,42</div>
-                <div style={{ fontSize: '0.48rem', color: '#71717A' }}>Custo/km</div>
+              <div style={{ background: Zinc900, borderRadius: '10px', border: `1px solid ${Zinc800}`, padding: '6px 4px', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.5rem', color: Amber400, background: 'rgba(245,158,11,0.12)', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>Média</span>
+                <div style={{ fontSize: '0.85rem', fontWeight: 900, color: Zinc50, marginTop: '2px' }}>R$ 0,42</div>
+                <div style={{ fontSize: '0.48rem', color: Zinc400 }}>Custo/km</div>
               </div>
             </div>
           </div>
@@ -286,56 +365,56 @@ export const GaragemPage: React.FC = () => {
     },
     {
       id: 'dock',
-      titulo: 'Quick Action Dock & Command Sheet',
-      subtitulo: 'Acesso instantâneo a Abastecimento, Manutenção e Finanças.',
+      titulo: 'Quick Action Dock & ModalBottomSheet',
+      subtitulo: 'Atalhos em 1 toque na Home + Sheet de Ações Rápidas.',
       icone: Layers,
-      tag: 'INTERAÇÃO RÁPIDA',
-      descricaoCurta: 'O Quick Action Dock na home screen permite registrar entradas com um toque. O Command Sheet flutuante organiza opções com contadores em tempo real e atalhos otimizados para uso com uma mão.',
+      tag: 'AGILIDADE OPERACIONAL',
+      descricaoCurta: 'Substitui botões espalhados por um elegante Quick Action Dock na Home e um ModalBottomSheet inspirado no shadcn/ui com opções em cards Zinc 950 com bordas suaves de 16dp.',
       destaques: [
-        'Quick Action Tiles com ícones temáticos e contadores de registros',
-        'ModalBottomSheet com visual shadcn e curvatura de 24dp',
-        'Transição ágil entre telas sem bloqueio de thread',
-        'Feedback tátil em cada ação de cadastro'
+        'Cards de ação com ícones semânticos (Amarelo para Combustível, Azul para Oficina)',
+        'Contadores de registros em tempo real (ex: "3 registros", "2 serviços")',
+        'BottomSheet com cantos arredondados de 24dp e toque fora para fechar',
+        'Navegação sem engasgos com resposta tátil'
       ],
       renderVisual: () => molduraSmartphoneSimulado(
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#09090B', color: '#FAFAFA', padding: '22px 12px 10px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1F1F23', paddingBottom: '8px' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 800 }}>Quick Action Dock</span>
-            <span style={{ fontSize: '0.55rem', color: '#E11D48', background: 'rgba(225,29,72,0.12)', padding: '2px 6px', borderRadius: '6px', fontWeight: 700 }}>ATALHOS</span>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: Zinc950, color: Zinc50, padding: '22px 12px 10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${Zinc850}`, paddingBottom: '8px' }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 800 }}>Ações Rápidas (Sheet)</span>
+            <span style={{ fontSize: '0.55rem', color: Crimson500, background: 'rgba(225,29,72,0.12)', padding: '2px 6px', borderRadius: '6px', fontWeight: 700 }}>ATALHOS</span>
           </div>
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '8px' }}>
-            <div style={{ background: '#18181B', border: '1px solid #27272A', borderRadius: '12px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Fuel size={16} color="#FBBF24" />
+            <div style={{ background: Zinc900, border: `1px solid ${Zinc800}`, borderRadius: '12px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Fuel size={17} color={Amber400} />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 800 }}>Novo Abastecimento</div>
-                <div style={{ fontSize: '0.58rem', color: '#71717A' }}>Litros, preço bomba e cálculo km/L</div>
+                <div style={{ fontSize: '0.78rem', fontWeight: 800 }}>Novo Abastecimento</div>
+                <div style={{ fontSize: '0.6rem', color: Zinc400 }}>Litros, leitura da bomba e média km/L</div>
               </div>
-              <span style={{ fontSize: '0.55rem', color: '#FBBF24', fontWeight: 700 }}>+Add</span>
+              <ArrowRight size={13} color={Zinc500} />
             </div>
 
-            <div style={{ background: '#18181B', border: '1px solid #27272A', borderRadius: '12px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(14,165,233,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Wrench size={16} color="#38BDF8" />
+            <div style={{ background: Zinc900, border: `1px solid ${Zinc800}`, borderRadius: '12px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'rgba(14,165,233,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Wrench size={17} color={Sky400} />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 800 }}>Registrar Manutenção</div>
-                <div style={{ fontSize: '0.58rem', color: '#71717A' }}>Óleo, pastilhas, pneus e notas fiscais</div>
+                <div style={{ fontSize: '0.78rem', fontWeight: 800 }}>Nova Manutenção</div>
+                <div style={{ fontSize: '0.6rem', color: Zinc400 }}>Óleo, pneus, pastilhas e cupons fiscais</div>
               </div>
-              <span style={{ fontSize: '0.55rem', color: '#38BDF8', fontWeight: 700 }}>+Add</span>
+              <ArrowRight size={13} color={Zinc500} />
             </div>
 
-            <div style={{ background: '#18181B', border: '1px solid #27272A', borderRadius: '12px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <TrendingUp size={16} color="#34D399" />
+            <div style={{ background: `linear-gradient(90deg, rgba(225,29,72,0.15) 0%, ${Zinc900} 100%)`, border: `1px solid rgba(225,29,72,0.4)`, borderRadius: '12px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'rgba(225,29,72,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Sparkles size={17} color={Crimson500} />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 800 }}>Painel de Finanças</div>
-                <div style={{ fontSize: '0.58rem', color: '#71717A' }}>Gráficos Vico e custos por quilômetro</div>
+                <div style={{ fontSize: '0.78rem', fontWeight: 800 }}>Consultar Mecânico IA</div>
+                <div style={{ fontSize: '0.6rem', color: Zinc300 }}>Diagnóstico inteligente com Gemini</div>
               </div>
-              <ArrowRight size={14} color="#71717A" />
+              <ArrowRight size={13} color={Crimson500} />
             </div>
           </div>
         </div>
@@ -347,43 +426,41 @@ export const GaragemPage: React.FC = () => {
       subtitulo: 'Hero Display Cockpit + Leitura ML Kit de Bomba + Check-in GPS.',
       icone: Fuel,
       tag: 'ABASTECIMENTO INTELIGENTE',
-      descricaoCurta: 'Projetada para rapidez na bomba do posto de gasolina. O usuário pode capturar os dados via OCR do ML Kit tirando foto da bomba, acionar check-in automático de endereço e conferir o total calculado instantaneamente.',
+      descricaoCurta: 'Projetada para agilidade máxima no posto de combustível. Conta com hero display em destaque do total pago, botões rápidos para combustível e integração OCR para leitura da bomba.',
       destaques: [
-        'Display Hero estilo velocímetro esportivo destacando o valor total pago',
-        'Seletor em pílulas: Gasolina, Etanol, Diesel e GNV',
-        'Cálculo bidirecional automático (Litros x Preço por Litro)',
-        'Botão "Ler Bomba" via ML Kit Text Recognition'
+        'Display gigante estilo velocímetro com o valor total em destaque',
+        'Seletor em chips: Gasolina, Etanol, Diesel e GNV',
+        'Cálculo bidirecional instantâneo (Litros x Preço por Litro)',
+        'Check-in de posto via geolocalização e botão Ler Bomba com ML Kit'
       ],
       renderVisual: () => molduraSmartphoneSimulado(
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#09090B', color: '#FAFAFA', padding: '22px 12px 10px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1F1F23', paddingBottom: '8px' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: Zinc950, color: Zinc50, padding: '22px 12px 10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${Zinc850}`, paddingBottom: '8px' }}>
             <span style={{ fontSize: '0.8rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Fuel size={14} color="#FBBF24" /> Abastecimento
+              <Fuel size={14} color={Amber400} /> Abastecimento
             </span>
-            <span style={{ fontSize: '0.55rem', border: '1px solid #27272A', padding: '2px 6px', borderRadius: '6px', color: '#E4E4E7' }}>Ler Bomba (OCR)</span>
+            <span style={{ fontSize: '0.55rem', border: `1px solid ${Zinc800}`, padding: '2px 6px', borderRadius: '6px', color: Zinc200 }}>Ler Bomba (OCR)</span>
           </div>
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '8px' }}>
-            {/* Display Hero do Valor */}
-            <div style={{ background: 'linear-gradient(135deg, #221317 0%, #121215 100%)', borderRadius: '12px', border: '1px solid rgba(225,29,72,0.35)', padding: '12px', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.55rem', color: '#A1A1AA', fontWeight: 700 }}>VALOR TOTAL</div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#FAFAFA', margin: '2px 0' }}>R$ 247,38</div>
-              <div style={{ fontSize: '0.6rem', color: '#34D399' }}>42.0 L • R$ 5,89/L</div>
+            <div style={{ background: `linear-gradient(135deg, ${CrimsonGlow} 0%, ${Zinc900} 100%)`, borderRadius: '12px', border: `1px solid rgba(225,29,72,0.35)`, padding: '12px', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.55rem', color: Zinc400, fontWeight: 700 }}>VALOR TOTAL</div>
+              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: Zinc50, margin: '2px 0' }}>R$ 247,38</div>
+              <div style={{ fontSize: '0.6rem', color: Emerald400 }}>42.0 L • R$ 5,89/L</div>
             </div>
 
-            {/* Tipos de combustível */}
             <div style={{ display: 'flex', gap: '4px' }}>
-              <span style={{ flex: 1, textAlign: 'center', background: '#E11D48', color: '#fff', fontWeight: 800, padding: '4px 0', borderRadius: '6px', fontSize: '0.6rem' }}>Gasolina</span>
-              <span style={{ flex: 1, textAlign: 'center', background: '#18181B', color: '#A1A1AA', padding: '4px 0', borderRadius: '6px', fontSize: '0.6rem' }}>Etanol</span>
-              <span style={{ flex: 1, textAlign: 'center', background: '#18181B', color: '#A1A1AA', padding: '4px 0', borderRadius: '6px', fontSize: '0.6rem' }}>Diesel</span>
+              <span style={{ flex: 1, textAlign: 'center', background: Crimson600, color: '#fff', fontWeight: 800, padding: '4px 0', borderRadius: '6px', fontSize: '0.6rem' }}>Gasolina</span>
+              <span style={{ flex: 1, textAlign: 'center', background: Zinc900, color: Zinc400, padding: '4px 0', borderRadius: '6px', fontSize: '0.6rem' }}>Etanol</span>
+              <span style={{ flex: 1, textAlign: 'center', background: Zinc900, color: Zinc400, padding: '4px 0', borderRadius: '6px', fontSize: '0.6rem' }}>Diesel</span>
             </div>
 
-            <div style={{ background: '#18181B', borderRadius: '8px', border: '1px solid #27272A', padding: '6px 8px', fontSize: '0.58rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: '#A1A1AA' }}>Tanque Cheio:</span>
-              <strong style={{ color: '#34D399' }}>SIM (Gera Média de Consumo)</strong>
+            <div style={{ background: Zinc900, borderRadius: '8px', border: `1px solid ${Zinc800}`, padding: '6px 8px', fontSize: '0.58rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: Zinc400 }}>Tanque Cheio:</span>
+              <strong style={{ color: Emerald400 }}>SIM (Calcula Média)</strong>
             </div>
 
-            <button style={{ background: '#E11D48', color: '#fff', border: 'none', borderRadius: '10px', padding: '8px', fontWeight: 800, fontSize: '0.7rem' }}>
+            <button style={{ background: Crimson600, color: '#fff', border: 'none', borderRadius: '10px', padding: '8px', fontWeight: 800, fontSize: '0.7rem' }}>
               Confirmar Abastecimento
             </button>
           </div>
@@ -392,49 +469,49 @@ export const GaragemPage: React.FC = () => {
     },
     {
       id: 'gemini',
-      titulo: 'TelaGeminiChat.kt (Mecânico IA Virtual)',
-      subtitulo: 'Assistente Generativo para Diagnóstico Automotivo e Barulhos.',
+      titulo: 'TelaGeminiChat.kt (Mecânico IA)',
+      subtitulo: 'Assistente Generativo para Diagnóstico Automotivo.',
       icone: Bot,
       tag: 'INTELIGÊNCIA ARTIFICIAL',
-      descricaoCurta: 'Comunicação direta com o Google Generative AI SDK (Gemini). O motorista pode anexar fotos do painel de instrumentos ou cupom fiscal e receber diagnósticos técnicos com linguagem clara e preventiva.',
+      descricaoCurta: 'Alimentado pelo Google Generative AI SDK (Gemini). Permite descrever sintomas, luzes no painel ou anexar foto de cupons fiscais e receber orientações preventivas imediatas.',
       destaques: [
-        'Streaming de respostas em tempo real com indicador de status',
-        'Chips de perguntas frequentes ("Luz de injeção", "Barulho no freio")',
-        'Inspeção multimodal: envio de foto da peça ou CRLV',
-        'Orientações técnicas para evitar manutenções desnecessárias'
+        'Streaming de respostas com diagnóstico preliminar',
+        'Chips rápidos de diagnóstico ("Luz da injeção", "Barulho ao frear")',
+        'Interpretação de notas fiscais e leitura de peças',
+        'Conselhos de segurança antes de viagens longas'
       ],
       renderVisual: () => molduraSmartphoneSimulado(
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#09090B', color: '#FAFAFA', padding: '22px 10px 8px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1F1F23', paddingBottom: '6px' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: Zinc950, color: Zinc50, padding: '22px 10px 8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${Zinc850}`, paddingBottom: '6px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: 'rgba(225,29,72,0.2)', border: '1px solid #E11D48', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Sparkles size={12} color="#F43F5E" />
+              <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: 'rgba(225,29,72,0.2)', border: `1px solid ${Crimson600}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Sparkles size={12} color={Crimson500} />
               </div>
               <span style={{ fontSize: '0.75rem', fontWeight: 800 }}>Mecânico Virtual IA</span>
             </div>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981' }}></span>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: Emerald500 }}></span>
           </div>
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', padding: '8px 0', overflowY: 'hidden' }}>
-            <div style={{ alignSelf: 'flex-end', background: '#E11D48', padding: '5px 8px', borderRadius: '10px 10px 2px 10px', fontSize: '0.6rem', maxWidth: '85%' }}>
+            <div style={{ alignSelf: 'flex-end', background: Crimson600, padding: '5px 8px', borderRadius: '10px 10px 2px 10px', fontSize: '0.6rem', maxWidth: '85%' }}>
               Luz de pastilha acendeu no painel hoje...
             </div>
-            <div style={{ alignSelf: 'flex-start', background: '#18181B', border: '1px solid #27272A', padding: '6px 8px', borderRadius: '10px 10px 10px 2px', fontSize: '0.58rem', lineHeight: 1.35, maxWidth: '92%', color: '#E4E4E7' }}>
-              <strong style={{ color: '#F43F5E' }}>Diagnóstico Garagem:</strong><br />
-              O sensor eletrônico de desgaste atingiu o limite de segurança das pastilhas. Troque em até 500 km para preservar os discos de freio!
+            <div style={{ alignSelf: 'flex-start', background: Zinc900, border: `1px solid ${Zinc800}`, padding: '6px 8px', borderRadius: '10px 10px 10px 2px', fontSize: '0.58rem', lineHeight: 1.35, maxWidth: '92%', color: Zinc200 }}>
+              <strong style={{ color: Crimson500 }}>Diagnóstico Garagem:</strong><br />
+              O sensor acústico de desgaste atingiu a margem de segurança. Troque as pastilhas em até 500 km para não riscar o disco!
             </div>
           </div>
 
-          <div style={{ background: '#18181B', borderRadius: '8px', border: '1px solid #27272A', padding: '5px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.58rem', color: '#71717A' }}>Descreva o sintoma ou anexe foto...</span>
-            <Send size={12} color="#E11D48" />
+          <div style={{ background: Zinc900, borderRadius: '8px', border: `1px solid ${Zinc800}`, padding: '5px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.58rem', color: Zinc500 }}>Descreva o sintoma ou anexe foto...</span>
+            <Send size={12} color={Crimson600} />
           </div>
         </div>
       )
     },
     {
       id: 'financas',
-      titulo: 'TelaFinancas.kt & Analytics',
+      titulo: 'TelaFinancas.kt & Relatórios',
       subtitulo: 'Cockpit Financeiro com Split de Gastos e Módulos Reativos.',
       icone: TrendingUp,
       tag: 'ANALYTICS & RELATÓRIOS',
@@ -446,38 +523,36 @@ export const GaragemPage: React.FC = () => {
         'Gráficos nativos com a biblioteca Vico Charts'
       ],
       renderVisual: () => molduraSmartphoneSimulado(
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#09090B', color: '#FAFAFA', padding: '22px 10px 8px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1F1F23', paddingBottom: '6px' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: Zinc950, color: Zinc50, padding: '22px 10px 8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${Zinc850}`, paddingBottom: '6px' }}>
             <span style={{ fontSize: '0.75rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <TrendingUp size={14} color="#34D399" /> Painel Financeiro
+              <TrendingUp size={14} color={Emerald400} /> Painel Financeiro
             </span>
-            <span style={{ fontSize: '0.52rem', color: '#34D399', background: 'rgba(16,185,129,0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>Global</span>
+            <span style={{ fontSize: '0.52rem', color: Emerald400, background: 'rgba(16,185,129,0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>Global</span>
           </div>
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '8px 0' }}>
-            {/* Hero Financeiro */}
-            <div style={{ background: 'linear-gradient(145deg, #1A1215 0%, #121215 100%)', borderRadius: '10px', border: '1px solid #27272A', padding: '8px' }}>
-              <div style={{ fontSize: '0.5rem', color: '#71717A', fontWeight: 700 }}>TOTAL ACUMULADO</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#FAFAFA' }}>R$ 1.250,10</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '0.55rem', borderTop: '1px solid #27272A', paddingTop: '4px' }}>
-                <span style={{ color: '#FBBF24' }}>Combustível: R$ 830</span>
-                <span style={{ color: '#F43F5E' }}>Oficina: R$ 420</span>
+            <div style={{ background: `linear-gradient(145deg, #1A1215 0%, ${Zinc900} 100%)`, borderRadius: '10px', border: `1px solid ${Zinc800}`, padding: '8px' }}>
+              <div style={{ fontSize: '0.5rem', color: Zinc400, fontWeight: 700 }}>TOTAL ACUMULADO</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 900, color: Zinc50 }}>R$ 1.250,10</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '0.55rem', borderTop: `1px solid ${Zinc800}`, paddingTop: '4px' }}>
+                <span style={{ color: Amber400 }}>Combustível: R$ 830</span>
+                <span style={{ color: Crimson500 }}>Oficina: R$ 420</span>
               </div>
             </div>
 
-            {/* Módulos do Hub */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ background: '#18181B', borderRadius: '6px', border: '1px solid #27272A', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ background: Zinc900, borderRadius: '6px', border: `1px solid ${Zinc800}`, padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '0.6rem', fontWeight: 700 }}>Visão Geral (Pizza)</span>
-                <ArrowRight size={10} color="#71717A" />
+                <ArrowRight size={10} color={Zinc500} />
               </div>
-              <div style={{ background: '#18181B', borderRadius: '6px', border: '1px solid #27272A', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ background: Zinc900, borderRadius: '6px', border: `1px solid ${Zinc800}`, padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '0.6rem', fontWeight: 700 }}>Gastos Mensais (Evolução)</span>
-                <ArrowRight size={10} color="#71717A" />
+                <ArrowRight size={10} color={Zinc500} />
               </div>
-              <div style={{ background: '#18181B', borderRadius: '6px', border: '1px solid #27272A', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ background: Zinc900, borderRadius: '6px', border: `1px solid ${Zinc800}`, padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '0.6rem', fontWeight: 700 }}>Análise de Consumo (km/L)</span>
-                <ArrowRight size={10} color="#71717A" />
+                <ArrowRight size={10} color={Zinc500} />
               </div>
             </div>
           </div>
@@ -495,7 +570,7 @@ export const GaragemPage: React.FC = () => {
   return (
     <>
       <header className="pagina-cabecalho">
-        <div className="badge-categoria" style={{ background: 'rgba(225, 29, 72, 0.15)', color: '#F43F5E', borderColor: 'rgba(225, 29, 72, 0.35)' }}>
+        <div className="badge-categoria" style={{ background: 'rgba(225, 29, 72, 0.15)', color: Crimson500, borderColor: 'rgba(225, 29, 72, 0.35)' }}>
           <Smartphone size={16} /> GaragemApp v2.0 • Jetpack Compose & Material 3
         </div>
         <h1>Garagem App</h1>
@@ -512,8 +587,8 @@ export const GaragemPage: React.FC = () => {
           alignItems: 'center'
         }}>
           <div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(225,29,72,0.12)', border: '1px solid rgba(225,29,72,0.3)', padding: '4px 10px', borderRadius: '999px', fontSize: '0.78rem', color: '#F43F5E', fontWeight: 700, marginBottom: '10px' }}>
-              <CheckCircle2 size={14} /> NOVO DESIGN SYSTEM v2.0
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(225,29,72,0.12)', border: '1px solid rgba(225,29,72,0.3)', padding: '4px 10px', borderRadius: '999px', fontSize: '0.78rem', color: Crimson500, fontWeight: 700, marginBottom: '10px' }}>
+              <CheckCircle2 size={14} /> NOVO DESIGN SYSTEM V2.0 FIEL AO APK
             </div>
             <h2 style={{ fontSize: '1.8rem', marginBottom: '14px' }}>UX Reformulada: Do Visual ao Desempenho</h2>
             <p style={{ color: 'var(--texto-suave)', marginBottom: '14px', fontSize: '1.02rem' }}>
@@ -524,8 +599,8 @@ export const GaragemPage: React.FC = () => {
             </p>
           </div>
 
-          <div style={{ background: '#09090B', border: '1px solid #27272A', borderRadius: 'var(--radius)', padding: '26px' }}>
-            <h4 style={{ color: '#F43F5E', marginBottom: '12px', fontSize: '1.1rem' }}>Evoluções da Versão 2.0:</h4>
+          <div style={{ background: Zinc950, border: `1px solid ${Zinc800}`, borderRadius: 'var(--radius)', padding: '26px' }}>
+            <h4 style={{ color: Crimson500, marginBottom: '12px', fontSize: '1.1rem' }}>Evoluções da Versão 2.0:</h4>
             <ul className="recursos-lista" style={{ marginBottom: 0 }}>
               <li><strong>Design Bento Grid:</strong> Informações hierarquizadas com alta legibilidade</li>
               <li><strong>Quick Action Dock:</strong> Adição instantânea de combustível e manutenções</li>
@@ -541,7 +616,7 @@ export const GaragemPage: React.FC = () => {
             ============================================================ */}
         <section style={{ marginBottom: '60px' }}>
           <div className="secao-titulo" style={{ textAlign: 'left', marginBottom: '24px' }}>
-            <span className="sub-rotulo" style={{ color: '#F43F5E' }}>APRESENTAÇÃO TÉCNICA DAS TELAS</span>
+            <span className="sub-rotulo" style={{ color: Crimson500 }}>APRESENTAÇÃO TÉCNICA DAS TELAS</span>
             <h2 style={{ fontSize: '1.8rem' }}>Nova Identidade Visual em Ação</h2>
             <p style={{ color: 'var(--texto-suave)' }}>
               Navegue pelos slides abaixo para conferir a reprodução exata das telas nativas do GaragemApp em Jetpack Compose com a paleta Zinc & Crimson:
@@ -564,9 +639,9 @@ export const GaragemPage: React.FC = () => {
                     fontWeight: ativo ? 700 : 500,
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
-                    background: ativo ? 'linear-gradient(90deg, #E11D48, #BE123C)' : '#18181B',
-                    color: ativo ? '#ffffff' : '#A1A1AA',
-                    border: ativo ? 'none' : '1px solid #27272A',
+                    background: ativo ? `linear-gradient(90deg, ${Crimson600}, #BE123C)` : Zinc900,
+                    color: ativo ? '#ffffff' : Zinc400,
+                    border: ativo ? 'none' : `1px solid ${Zinc800}`,
                     boxShadow: ativo ? '0 0 20px rgba(225, 29, 72, 0.4)' : 'none',
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -582,8 +657,8 @@ export const GaragemPage: React.FC = () => {
 
           {/* Card da Apresentação */}
           <div style={{
-            background: 'linear-gradient(160deg, #101014, #09090B)',
-            border: '1px solid #27272A',
+            background: `linear-gradient(160deg, #101014, ${Zinc950})`,
+            border: `1px solid ${Zinc800}`,
             borderRadius: 'var(--radius)',
             padding: '30px',
             boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
@@ -613,7 +688,7 @@ export const GaragemPage: React.FC = () => {
                   <button
                     onClick={proximoSlide}
                     className="btn btn-primario"
-                    style={{ padding: '8px 16px', fontSize: '0.85rem', background: 'linear-gradient(90deg, #E11D48, #BE123C)', color: '#fff' }}
+                    style={{ padding: '8px 16px', fontSize: '0.85rem', background: `linear-gradient(90deg, ${Crimson600}, #BE123C)`, color: '#fff' }}
                   >
                     Próxima <ChevronRight size={16} />
                   </button>
@@ -627,7 +702,7 @@ export const GaragemPage: React.FC = () => {
                   alignItems: 'center',
                   gap: '6px',
                   background: 'rgba(225, 29, 72, 0.15)',
-                  color: '#F43F5E',
+                  color: Crimson500,
                   fontSize: '0.75rem',
                   fontWeight: 800,
                   padding: '4px 12px',
@@ -643,7 +718,7 @@ export const GaragemPage: React.FC = () => {
                   {atual.titulo}
                 </h3>
 
-                <p style={{ color: '#F43F5E', fontSize: '0.95rem', fontWeight: 600, marginBottom: '14px' }}>
+                <p style={{ color: Crimson500, fontSize: '0.95rem', fontWeight: 600, marginBottom: '14px' }}>
                   {atual.subtitulo}
                 </p>
 
@@ -651,14 +726,14 @@ export const GaragemPage: React.FC = () => {
                   {atual.descricaoCurta}
                 </p>
 
-                <div style={{ borderTop: '1px solid #27272A', paddingTop: '16px' }}>
+                <div style={{ borderTop: `1px solid ${Zinc800}`, paddingTop: '16px' }}>
                   <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Destaques da Implementação:
                   </span>
                   <ul style={{ listStyle: 'none', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {atual.destaques.map((d, i) => (
                       <li key={i} style={{ fontSize: '0.9rem', color: 'var(--texto-suave)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#E11D48' }}></span>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: Crimson600 }}></span>
                         {d}
                       </li>
                     ))}
@@ -674,22 +749,22 @@ export const GaragemPage: React.FC = () => {
             ============================================================ */}
         <section>
           <div className="secao-titulo" style={{ textAlign: 'left', marginBottom: '20px' }}>
-            <span className="sub-rotulo" style={{ color: '#F43F5E' }}>EXPERIMENTE AO VIVO NO SMARTPHONE</span>
-            <h2 style={{ fontSize: '1.8rem' }}>Simulador Interativo da Nova Interface</h2>
+            <span className="sub-rotulo" style={{ color: Crimson500 }}>EXPERIMENTE AO VIVO NO SMARTPHONE</span>
+            <h2 style={{ fontSize: '1.8rem' }}>Simulador Interativo 100% Fiel ao APK</h2>
             <p style={{ color: 'var(--texto-suave)' }}>
-              Interaja com o aparelho abaixo: troque de veículo, alterne o saldo, abra o chat com o mecânico IA, acione o Quick Action Dock ou adicione combustível!
+              Interaja com o aparelho abaixo exatamente como no aplicativo nativo: alterne telas pela <strong>Floating Navigation Bar</strong>, abra o <strong>Mecânico Gemini IA</strong>, insira abastecimentos na bomba ou consulte os gráficos de despesas!
             </p>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0', width: '100%' }}>
             <div style={{
               width: '100%',
-              maxWidth: '360px',
-              height: '750px',
-              background: '#09090B',
+              maxWidth: '365px',
+              height: '760px',
+              background: Zinc950,
               borderRadius: '42px',
-              border: '8px solid #1F1F23',
-              boxShadow: '0 24px 70px rgba(0, 0, 0, 0.9), 0 0 35px rgba(225, 29, 72, 0.25)',
+              border: `8px solid ${Zinc850}`,
+              boxShadow: '0 25px 70px rgba(0, 0, 0, 0.9), 0 0 35px rgba(225, 29, 72, 0.28)',
               position: 'relative',
               overflow: 'hidden',
               display: 'flex',
@@ -710,16 +785,16 @@ export const GaragemPage: React.FC = () => {
                 alignItems: 'center',
                 justifyContent: 'center'
               }}>
-                <div style={{ width: '8px', height: '8px', background: '#27272A', borderRadius: '50%' }}></div>
+                <div style={{ width: '8px', height: '8px', background: Zinc800, borderRadius: '50%' }}></div>
               </div>
 
               {/* Topbar Cockpit v2.0 */}
               <div style={{
-                background: 'linear-gradient(180deg, #1C0A10 0%, #09090B 100%)',
+                background: `linear-gradient(180deg, ${CrimsonGlow} 0%, ${Zinc950} 100%)`,
                 padding: '34px 16px 12px',
-                borderBottom: '1px solid #18181B'
+                borderBottom: `1px solid ${Zinc900}`
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#A1A1AA', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: Zinc400, marginBottom: '10px' }}>
                   <span>19:45</span>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <Wifi size={12} />
@@ -731,30 +806,30 @@ export const GaragemPage: React.FC = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div style={{ position: 'relative' }}>
-                      <img src="/assets/john-persona.jfif" alt="Avatar" style={{ width: '42px', height: '42px', borderRadius: '13px', border: '1.5px solid #E11D48', objectFit: 'cover' }} />
-                      <span style={{ position: 'absolute', bottom: -1, right: -1, width: '9px', height: '9px', borderRadius: '50%', background: '#10B981', border: '2px solid #09090B' }}></span>
+                      <img src="/assets/john-persona.jfif" alt="Avatar" style={{ width: '42px', height: '42px', borderRadius: '13px', border: `1.5px solid ${Crimson500}`, objectFit: 'cover' }} />
+                      <span style={{ position: 'absolute', bottom: -1, right: -1, width: '9px', height: '9px', borderRadius: '50%', background: Emerald500, border: `2px solid ${Zinc950}` }}></span>
                     </div>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <span style={{ fontSize: '0.62rem', color: '#A1A1AA', letterSpacing: '1px', fontWeight: 800 }}>GARAGEM COCKPIT</span>
-                        <span style={{ background: 'rgba(225,29,72,0.18)', color: '#F43F5E', fontSize: '0.52rem', fontWeight: 800, padding: '1px 5px', borderRadius: '999px' }}>v2.0</span>
+                        <span style={{ fontSize: '0.62rem', color: Zinc400, letterSpacing: '1px', fontWeight: 800 }}>GARAGEM COCKPIT</span>
+                        <span style={{ background: 'rgba(225,29,72,0.18)', color: Crimson500, fontSize: '0.52rem', fontWeight: 800, padding: '1px 5px', borderRadius: '999px' }}>v2.0</span>
                       </div>
-                      <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#FAFAFA' }}>Olá, Jonathan</div>
+                      <div style={{ fontSize: '1.05rem', fontWeight: 800, color: Zinc50 }}>Olá, Jonathan</div>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <button
-                      onClick={() => setModalTipo('sheetAcoes')}
-                      style={{ width: '34px', height: '34px', borderRadius: '10px', background: '#18181B', border: '1px solid #27272A', color: '#F43F5E', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                      onClick={() => setModalAberto('sheetAcoes')}
+                      style={{ width: '36px', height: '36px', borderRadius: '11px', background: Zinc900, border: `1px solid ${Zinc800}`, color: Crimson500, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                     >
                       <Plus size={18} />
                     </button>
                     <button
-                      onClick={() => alert('Configurações: Preferências de sistema, biometria e sincronização em nuvem')}
-                      style={{ width: '34px', height: '34px', borderRadius: '10px', background: '#18181B', border: '1px solid #27272A', color: '#A1A1AA', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                      onClick={() => setRotaAtual('ajustes')}
+                      style={{ width: '36px', height: '36px', borderRadius: '11px', background: Zinc900, border: `1px solid ${Zinc800}`, color: Zinc300, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                     >
-                      <Settings size={16} />
+                      <Settings size={17} />
                     </button>
                   </div>
                 </div>
@@ -772,292 +847,364 @@ export const GaragemPage: React.FC = () => {
                         fontWeight: veiculoIndex === i ? 700 : 500,
                         cursor: 'pointer',
                         whiteSpace: 'nowrap',
-                        background: veiculoIndex === i ? 'rgba(225,29,72,0.18)' : '#18181B',
-                        color: veiculoIndex === i ? '#FAFAFA' : '#A1A1AA',
-                        border: veiculoIndex === i ? '1px solid #E11D48' : '1px solid #27272A',
+                        background: veiculoIndex === i ? 'rgba(225,29,72,0.18)' : Zinc900,
+                        color: veiculoIndex === i ? Zinc50 : Zinc400,
+                        border: veiculoIndex === i ? `1px solid ${Crimson500}` : `1px solid ${Zinc800}`,
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '5px'
+                        gap: '6px'
                       }}
                     >
-                      <Car size={13} color={veiculoIndex === i ? '#E11D48' : '#71717A'} />
+                      <Car size={13} color={veiculoIndex === i ? Crimson500 : Zinc500} />
                       {v.nome}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Corpo do App no Smartphone */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px 85px', background: '#09090B', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {/* 1. Bento Hero Card */}
-                <div style={{
-                  background: 'linear-gradient(145deg, #221317 0%, #18181B 50%, #121215 100%)',
-                  borderRadius: '20px',
-                  border: '1px solid #27272A',
-                  padding: '16px'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                    <div>
-                      <div style={{ display: 'flex', gap: '5px', marginBottom: '4px' }}>
-                        <span style={{ background: 'rgba(14,165,233,0.18)', color: '#38BDF8', fontSize: '0.55rem', fontWeight: 800, padding: '2px 6px', borderRadius: '999px' }}>{veiculo.tipo}</span>
-                        <span style={{ background: '#27272A', color: '#D4D4D8', fontSize: '0.55rem', fontWeight: 600, padding: '2px 6px', borderRadius: '999px' }}>{veiculo.ano}</span>
-                      </div>
-                      <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#FAFAFA' }}>{veiculo.nome}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#A1A1AA' }}>{veiculo.sub} rodados</div>
+              {/* ============================================================
+                  CORPO DINÂMICO CONFORME ROTA ATUAL
+                  ============================================================ */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px 85px', background: Zinc950, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {rotaAtual === 'garagem' && (
+                  <>
+                    {/* 1. Bento Hero Card */}
+                    <div style={{
+                      background: `linear-gradient(145deg, #221317 0%, ${Zinc900} 50%, #121215 100%)`,
+                      borderRadius: '22px',
+                      border: `1px solid ${Zinc800}`,
+                      padding: '16px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                        <div>
+                          <div style={{ display: 'flex', gap: '5px', marginBottom: '4px' }}>
+                            <span style={{ background: 'rgba(14,165,233,0.18)', color: Sky400, fontSize: '0.55rem', fontWeight: 800, padding: '2px 6px', borderRadius: '999px' }}>{veiculo.tipo}</span>
+                            <span style={{ background: Zinc800, color: Zinc300, fontSize: '0.55rem', fontWeight: 600, padding: '2px 6px', borderRadius: '999px' }}>{veiculo.ano}</span>
+                          </div>
+                          <div style={{ fontSize: '1.25rem', fontWeight: 900, color: Zinc50 }}>{veiculo.nome}</div>
+                          <div style={{ fontSize: '0.75rem', color: Zinc400, marginTop: '2px' }}>{veiculo.sub} rodados</div>
+                          <div style={{ marginTop: '8px' }}>
+                            {renderPlacaMercosul(veiculo.placa)}
+                          </div>
+                        </div>
 
-                      {/* Placa Mercosul Autêntica */}
-                      <div style={{ marginTop: '8px', background: '#fff', borderRadius: '5px', overflow: 'hidden', display: 'inline-block', textAlign: 'center' }}>
-                        <div style={{ background: '#003399', color: '#fff', fontSize: '0.42rem', fontWeight: 900, padding: '1px 8px', letterSpacing: '1px' }}>BRASIL</div>
-                        <div style={{ color: '#09090B', fontSize: '0.92rem', fontWeight: 900, padding: '0 8px', letterSpacing: '1.5px', fontFamily: 'Courier New' }}>{veiculo.placa}</div>
+                        <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: Zinc900, border: `1px solid ${Zinc800}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Car size={28} color={Crimson500} />
+                        </div>
                       </div>
-                    </div>
 
-                    <div style={{ width: '56px', height: '56px', borderRadius: '14px', background: '#18181B', border: '1px solid #27272A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Car size={26} color="#F43F5E" />
-                    </div>
-                  </div>
-
-                  {/* Box interno de gastos do mês */}
-                  <div style={{
-                    background: 'rgba(9, 9, 11, 0.75)',
-                    borderRadius: '14px',
-                    border: '1px solid #27272A',
-                    padding: '10px 12px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <div>
-                      <div style={{ fontSize: '0.62rem', color: '#A1A1AA', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <span>DESPESAS DO MÊS</span>
-                        <span onClick={() => setOcultarSaldo(!ocultarSaldo)} style={{ cursor: 'pointer' }}>
-                          {ocultarSaldo ? <EyeOff size={12} /> : <Eye size={12} />}
-                        </span>
-                      </div>
-                      <div style={{ color: '#FAFAFA', fontSize: '1.2rem', fontWeight: 900 }}>
-                        {ocultarSaldo ? 'R$ •••••' : `R$ ${veiculo.saldo.toFixed(2).replace('.', ',')}`}
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => setMostrarHistorico(!mostrarHistorico)}
-                      style={{
-                        background: mostrarHistorico ? '#E11D48' : '#27272A',
-                        color: '#FAFAFA',
-                        border: 'none',
-                        borderRadius: '9px',
-                        padding: '6px 10px',
-                        fontSize: '0.68rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
+                      {/* Box interno de gastos do mês */}
+                      <div style={{
+                        background: 'rgba(9, 9, 11, 0.75)',
+                        borderRadius: '14px',
+                        border: `1px solid ${Zinc800}`,
+                        padding: '10px 12px',
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
-                    >
-                      <History size={12} /> {mostrarHistorico ? 'Ocultar' : 'Histórico'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* 2. Bento Grid de Indicadores Vivos */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                  <div style={{ background: '#18181B', border: '1px solid #27272A', borderRadius: '14px', padding: '10px 4px', textAlign: 'center' }}>
-                    <span style={{ fontSize: '0.55rem', color: '#34D399', background: 'rgba(16,185,129,0.12)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>Ótimo</span>
-                    <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#FAFAFA', marginTop: '4px' }}>{veiculo.consumo.toFixed(1)}</div>
-                    <div style={{ fontSize: '0.58rem', color: '#71717A' }}>km/L médio</div>
-                  </div>
-
-                  <div style={{ background: '#18181B', border: '1px solid #27272A', borderRadius: '14px', padding: '10px 4px', textAlign: 'center' }}>
-                    <span style={{ fontSize: '0.55rem', color: '#38BDF8', background: 'rgba(14,165,233,0.12)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>Tanque</span>
-                    <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#FAFAFA', marginTop: '4px' }}>{veiculo.autonomia} km</div>
-                    <div style={{ fontSize: '0.58rem', color: '#71717A' }}>Autonomia</div>
-                  </div>
-
-                  <div style={{ background: '#18181B', border: '1px solid #27272A', borderRadius: '14px', padding: '10px 4px', textAlign: 'center' }}>
-                    <span style={{ fontSize: '0.55rem', color: '#FBBF24', background: 'rgba(245,158,11,0.12)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>Média</span>
-                    <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#FAFAFA', marginTop: '4px' }}>R$ {veiculo.custoKm.toFixed(2)}</div>
-                    <div style={{ fontSize: '0.58rem', color: '#71717A' }}>Custo/km</div>
-                  </div>
-                </div>
-
-                {/* 3. React Quick Action Dock */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                  <button
-                    onClick={() => setModalTipo('abastecer')}
-                    style={{
-                      background: '#18181B',
-                      border: '1px solid #27272A',
-                      borderRadius: '14px',
-                      padding: '10px 6px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'flex-start',
-                      gap: '4px'
-                    }}
-                  >
-                    <div style={{ width: '26px', height: '26px', borderRadius: '8px', background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Fuel size={14} color="#FBBF24" />
-                    </div>
-                    <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#FAFAFA' }}>Abastecer</span>
-                    <span style={{ fontSize: '0.55rem', color: '#71717A' }}>{historicoAbast.length} registros</span>
-                  </button>
-
-                  <button
-                    onClick={() => setModalTipo('manutencao')}
-                    style={{
-                      background: '#18181B',
-                      border: '1px solid #27272A',
-                      borderRadius: '14px',
-                      padding: '10px 6px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'flex-start',
-                      gap: '4px'
-                    }}
-                  >
-                    <div style={{ width: '26px', height: '26px', borderRadius: '8px', background: 'rgba(14,165,233,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Wrench size={14} color="#38BDF8" />
-                    </div>
-                    <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#FAFAFA' }}>Oficina</span>
-                    <span style={{ fontSize: '0.55rem', color: '#71717A' }}>{historicoManut.length} serviços</span>
-                  </button>
-
-                  <button
-                    onClick={() => setModalTipo('gemini')}
-                    style={{
-                      background: '#18181B',
-                      border: '1px solid #27272A',
-                      borderRadius: '14px',
-                      padding: '10px 6px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'flex-start',
-                      gap: '4px'
-                    }}
-                  >
-                    <div style={{ width: '26px', height: '26px', borderRadius: '8px', background: 'rgba(225,29,72,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Sparkles size={14} color="#F43F5E" />
-                    </div>
-                    <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#FAFAFA' }}>Gemini IA</span>
-                    <span style={{ fontSize: '0.55rem', color: '#71717A' }}>Mecânico</span>
-                  </button>
-                </div>
-
-                {/* 4. Timeline Expansível com Segmented Control */}
-                {mostrarHistorico && (
-                  <div style={{ background: '#121215', borderRadius: '16px', border: '1px solid #27272A', padding: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#A1A1AA', letterSpacing: '0.5px' }}>LINHA DO TEMPO</span>
-                      <span style={{ fontSize: '0.6rem', color: '#71717A' }}>Toque para ver</span>
-                    </div>
-
-                    {/* Segmented Control */}
-                    <div style={{ display: 'flex', background: '#09090B', padding: '3px', borderRadius: '10px', border: '1px solid #27272A', marginBottom: '10px' }}>
-                      <button
-                        onClick={() => setAbaHistorico('abastecer')}
-                        style={{
-                          flex: 1,
-                          padding: '6px',
-                          borderRadius: '8px',
-                          fontSize: '0.68rem',
-                          fontWeight: abaHistorico === 'abastecer' ? 700 : 500,
-                          background: abaHistorico === 'abastecer' ? '#27272A' : 'transparent',
-                          color: abaHistorico === 'abastecer' ? '#FAFAFA' : '#71717A',
-                          border: 'none',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Abastecimentos ({historicoAbast.length})
-                      </button>
-                      <button
-                        onClick={() => setAbaHistorico('manutencao')}
-                        style={{
-                          flex: 1,
-                          padding: '6px',
-                          borderRadius: '8px',
-                          fontSize: '0.68rem',
-                          fontWeight: abaHistorico === 'manutencao' ? 700 : 500,
-                          background: abaHistorico === 'manutencao' ? '#27272A' : 'transparent',
-                          color: abaHistorico === 'manutencao' ? '#FAFAFA' : '#71717A',
-                          border: 'none',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Manutenções ({historicoManut.length})
-                      </button>
-                    </div>
-
-                    {/* Lista do Histórico */}
-                    {abaHistorico === 'abastecer' ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {historicoAbast.map((item) => (
-                          <div key={item.id} style={{ background: '#18181B', borderRadius: '10px', border: '1px solid #27272A', padding: '8px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                              <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#FAFAFA' }}>{item.litros} • {item.desc}</div>
-                              <div style={{ fontSize: '0.6rem', color: '#71717A' }}>{item.data} • {item.consumo}</div>
-                            </div>
-                            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#FBBF24' }}>{item.valor}</span>
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '0.62rem', color: Zinc400, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <span>DESPESAS DO MÊS</span>
+                            <span onClick={() => setOcultarSaldo(!ocultarSaldo)} style={{ cursor: 'pointer' }}>
+                              {ocultarSaldo ? <EyeOff size={12} /> : <Eye size={12} />}
+                            </span>
                           </div>
-                        ))}
+                          <div style={{ color: Zinc50, fontSize: '1.25rem', fontWeight: 900 }}>
+                            {ocultarSaldo ? 'R$ •••••' : `R$ ${veiculo.saldo.toFixed(2).replace('.', ',')}`}
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => setMostrarHistorico(!mostrarHistorico)}
+                          style={{
+                            background: mostrarHistorico ? Crimson600 : Zinc800,
+                            color: Zinc50,
+                            border: `1px solid ${mostrarHistorico ? Crimson500 : Zinc700}`,
+                            borderRadius: '10px',
+                            padding: '6px 10px',
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <History size={13} /> {mostrarHistorico ? 'Ocultar' : 'Histórico'}
+                        </button>
                       </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {historicoManut.map((item) => (
-                          <div key={item.id} style={{ background: '#18181B', borderRadius: '10px', border: '1px solid #27272A', padding: '8px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                              <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#FAFAFA' }}>{item.desc}</div>
-                              <div style={{ fontSize: '0.6rem', color: '#71717A' }}>{item.data} • {item.tags.join(', ')}</div>
-                            </div>
-                            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#F43F5E' }}>{item.valor}</span>
+                    </div>
+
+                    {/* 2. Bento Grid de Indicadores Vivos */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                      <div style={{ background: Zinc900, border: `1px solid ${Zinc800}`, borderRadius: '16px', padding: '10px 4px', textAlign: 'center' }}>
+                        <span style={{ fontSize: '0.55rem', color: Emerald400, background: 'rgba(16,185,129,0.12)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>Ótimo</span>
+                        <div style={{ fontSize: '1.05rem', fontWeight: 900, color: Zinc50, marginTop: '4px' }}>{veiculo.consumo.toFixed(1)}</div>
+                        <div style={{ fontSize: '0.58rem', color: Zinc400 }}>km/L médio</div>
+                      </div>
+
+                      <div style={{ background: Zinc900, border: `1px solid ${Zinc800}`, borderRadius: '16px', padding: '10px 4px', textAlign: 'center' }}>
+                        <span style={{ fontSize: '0.55rem', color: Sky400, background: 'rgba(14,165,233,0.12)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>Tanque</span>
+                        <div style={{ fontSize: '1.05rem', fontWeight: 900, color: Zinc50, marginTop: '4px' }}>{veiculo.autonomia} km</div>
+                        <div style={{ fontSize: '0.58rem', color: Zinc400 }}>Autonomia</div>
+                      </div>
+
+                      <div style={{ background: Zinc900, border: `1px solid ${Zinc800}`, borderRadius: '16px', padding: '10px 4px', textAlign: 'center' }}>
+                        <span style={{ fontSize: '0.55rem', color: Amber400, background: 'rgba(245,158,11,0.12)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>Média</span>
+                        <div style={{ fontSize: '1.05rem', fontWeight: 900, color: Zinc50, marginTop: '4px' }}>R$ {veiculo.custoKm.toFixed(2)}</div>
+                        <div style={{ fontSize: '0.58rem', color: Zinc400 }}>Custo/km</div>
+                      </div>
+                    </div>
+
+                    {/* 3. React Quick Action Dock */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                      <button
+                        onClick={() => setModalAberto('novoAbast')}
+                        style={{
+                          background: Zinc900,
+                          border: `1px solid ${Zinc800}`,
+                          borderRadius: '16px',
+                          padding: '10px 8px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-start',
+                          gap: '4px'
+                        }}
+                      >
+                        <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Fuel size={15} color={Amber400} />
+                        </div>
+                        <span style={{ fontSize: '0.74rem', fontWeight: 800, color: Zinc50 }}>Abastecer</span>
+                        <span style={{ fontSize: '0.55rem', color: Zinc500 }}>{abastecimentos.length} registros</span>
+                      </button>
+
+                      <button
+                        onClick={() => setModalAberto('novaManut')}
+                        style={{
+                          background: Zinc900,
+                          border: `1px solid ${Zinc800}`,
+                          borderRadius: '16px',
+                          padding: '10px 8px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-start',
+                          gap: '4px'
+                        }}
+                      >
+                        <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(14,165,233,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Wrench size={15} color={Sky400} />
+                        </div>
+                        <span style={{ fontSize: '0.74rem', fontWeight: 800, color: Zinc50 }}>Oficina</span>
+                        <span style={{ fontSize: '0.55rem', color: Zinc500 }}>{manutencoes.length} serviços</span>
+                      </button>
+
+                      <button
+                        onClick={() => setModalAberto('chatGemini')}
+                        style={{
+                          background: Zinc900,
+                          border: `1px solid ${Zinc800}`,
+                          borderRadius: '16px',
+                          padding: '10px 8px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-start',
+                          gap: '4px'
+                        }}
+                      >
+                        <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(225,29,72,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Sparkles size={15} color={Crimson500} />
+                        </div>
+                        <span style={{ fontSize: '0.74rem', fontWeight: 800, color: Zinc50 }}>Gemini IA</span>
+                        <span style={{ fontSize: '0.55rem', color: Zinc500 }}>Mecânico</span>
+                      </button>
+                    </div>
+
+                    {/* 4. Timeline Expansível com Segmented Control */}
+                    {mostrarHistorico && (
+                      <div style={{ background: Zinc900, borderRadius: '18px', border: `1px solid ${Zinc800}`, padding: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <span style={{ fontSize: '0.68rem', fontWeight: 800, color: Zinc400, letterSpacing: '0.8px' }}>LINHA DO TEMPO DO VEÍCULO</span>
+                          <span style={{ fontSize: '0.58rem', color: Zinc500 }}>Toque para editar</span>
+                        </div>
+
+                        {/* Segmented Control Fiel */}
+                        <div style={{ display: 'flex', background: Zinc950, padding: '3px', borderRadius: '12px', border: `1px solid ${Zinc800}`, marginBottom: '10px' }}>
+                          <button
+                            onClick={() => setAbaHistorico('abastecimentos')}
+                            style={{
+                              flex: 1,
+                              padding: '7px 4px',
+                              borderRadius: '9px',
+                              fontSize: '0.68rem',
+                              fontWeight: abaHistorico === 'abastecimentos' ? 700 : 500,
+                              background: abaHistorico === 'abastecimentos' ? Zinc800 : 'transparent',
+                              color: abaHistorico === 'abastecimentos' ? Zinc50 : Zinc400,
+                              border: 'none',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Abastecimentos ({abastecimentos.length})
+                          </button>
+                          <button
+                            onClick={() => setAbaHistorico('manutencoes')}
+                            style={{
+                              flex: 1,
+                              padding: '7px 4px',
+                              borderRadius: '9px',
+                              fontSize: '0.68rem',
+                              fontWeight: abaHistorico === 'manutencoes' ? 700 : 500,
+                              background: abaHistorico === 'manutencoes' ? Zinc800 : 'transparent',
+                              color: abaHistorico === 'manutencoes' ? Zinc50 : Zinc400,
+                              border: 'none',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Manutenções ({manutencoes.length})
+                          </button>
+                        </div>
+
+                        {/* Lista de Registros */}
+                        {abaHistorico === 'abastecimentos' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {abastecimentos.map((a) => (
+                              <div key={a.id} style={{ background: Zinc950, borderRadius: '12px', border: `1px solid ${Zinc800}`, padding: '8px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div>
+                                  <div style={{ fontSize: '0.74rem', fontWeight: 800, color: Zinc50 }}>{a.litros} • {a.desc}</div>
+                                  <div style={{ fontSize: '0.6rem', color: Zinc400 }}>{a.data} • {a.km} km • <strong style={{ color: Emerald400 }}>{a.consumo}</strong></div>
+                                </div>
+                                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: Amber400 }}>{a.valor}</span>
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {manutencoes.map((m) => (
+                              <div key={m.id} style={{ background: Zinc950, borderRadius: '12px', border: `1px solid ${Zinc800}`, padding: '8px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div>
+                                  <div style={{ fontSize: '0.74rem', fontWeight: 800, color: Zinc50 }}>{m.desc}</div>
+                                  <div style={{ fontSize: '0.6rem', color: Zinc400 }}>{m.data} • {m.km} km • <span style={{ color: Sky400 }}>{m.tags.join(', ')}</span></div>
+                                </div>
+                                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: Crimson500 }}>{m.valor}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
+                  </>
+                )}
+
+                {/* TELA DE FINANÇAS SIMULADA */}
+                {rotaAtual === 'financas' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 800, color: Zinc50 }}>Painel Financeiro</span>
+                      <span style={{ fontSize: '0.55rem', background: 'rgba(16,185,129,0.15)', color: Emerald400, padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>Global</span>
+                    </div>
+
+                    <div style={{ background: `linear-gradient(145deg, #1A1215 0%, ${Zinc900} 100%)`, borderRadius: '16px', border: `1px solid ${Zinc800}`, padding: '14px' }}>
+                      <div style={{ fontSize: '0.55rem', color: Zinc400, fontWeight: 700 }}>TOTAL ACUMULADO</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 900, color: Zinc50 }}>R$ 1.369,05</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', borderTop: `1px solid ${Zinc800}`, paddingTop: '8px', fontSize: '0.65rem' }}>
+                        <span style={{ color: Amber400 }}>⛽ Combustível: R$ 729</span>
+                        <span style={{ color: Crimson500 }}>🔧 Oficina: R$ 640</span>
+                      </div>
+                    </div>
+
+                    <div style={{ fontSize: '0.68rem', fontWeight: 800, color: Zinc400 }}>MÓDULOS DE ANÁLISE</div>
+                    {[
+                      { t: 'Visão Geral', d: 'Split entre peças, combustível e mão de obra', cor: Sky400 },
+                      { t: 'Gastos Mensais', d: 'Evolução temporal e comparativo dos últimos 4 meses', cor: Violet500 },
+                      { t: 'Análise de Consumo', d: 'Eficiência energética média km/L e custo por quilômetro', cor: Emerald400 }
+                    ].map((m, idx) => (
+                      <div key={idx} style={{ background: Zinc900, borderRadius: '12px', border: `1px solid ${Zinc800}`, padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 800, color: Zinc50 }}>{m.t}</div>
+                          <div style={{ fontSize: '0.58rem', color: Zinc400 }}>{m.d}</div>
+                        </div>
+                        <ArrowRight size={14} color={m.cor} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* TELA DE AJUSTES SIMULADA */}
+                {rotaAtual === 'ajustes' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 800, color: Zinc50 }}>Configurações do App</div>
+                    
+                    <div style={{ background: `linear-gradient(145deg, #281014 0%, ${Zinc900} 100%)`, borderRadius: '16px', border: `1px solid #2C1417`, padding: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <img src="/assets/john-persona.jfif" alt="Avatar" style={{ width: '40px', height: '40px', borderRadius: '50%', border: `1.5px solid ${Crimson600}` }} />
+                      <div>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 800, color: Zinc50 }}>Jonathan Oliveira</div>
+                        <div style={{ fontSize: '0.6rem', color: Emerald400 }}>● Biometria e Nuvem Ativas</div>
+                      </div>
+                    </div>
+
+                    <div style={{ fontSize: '0.68rem', fontWeight: 800, color: Zinc400 }}>PREFERÊNCIAS & SEGURANÇA</div>
+                    <div style={{ background: Zinc900, borderRadius: '14px', border: `1px solid ${Zinc800}`, padding: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem' }}>
+                        <span>Modo Escuro (Zinc 950)</span>
+                        <strong style={{ color: Crimson500 }}>ATIVO</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', borderTop: `1px solid ${Zinc800}`, paddingTop: '8px' }}>
+                        <span>Login com Biometria</span>
+                        <strong style={{ color: Emerald400 }}>ATIVO</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', borderTop: `1px solid ${Zinc800}`, paddingTop: '8px' }}>
+                        <span>Sincronização Firestore</span>
+                        <strong style={{ color: Emerald400 }}>ONLINE</strong>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* MODAL BOTTOMSHEET: NOVO ABASTECIMENTO */}
-              {modalTipo === 'abastecer' && (
+              {/* ============================================================
+                  MODAIS BOTTOMSHEET: INTERAÇÕES REAIS NO SIMULADOR
+                  ============================================================ */}
+
+              {/* MODAL 1: NOVO ABASTECIMENTO */}
+              {modalAberto === 'novoAbast' && (
                 <div style={{
                   position: 'absolute',
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  background: '#18181B',
+                  background: Zinc900,
                   borderTopLeftRadius: '24px',
                   borderTopRightRadius: '24px',
-                  borderTop: '2px solid #E11D48',
-                  padding: '18px 16px 26px',
+                  borderTop: `2px solid ${Amber400}`,
+                  padding: '16px 16px 24px',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '10px',
                   zIndex: 90,
-                  boxShadow: '0 -10px 40px rgba(0,0,0,0.8)'
+                  boxShadow: '0 -10px 40px rgba(0,0,0,0.85)'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h4 style={{ color: '#FAFAFA', fontSize: '0.95rem', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Fuel size={16} color="#FBBF24" /> Novo Abastecimento
+                    <h4 style={{ color: Zinc50, fontSize: '0.95rem', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Fuel size={17} color={Amber400} /> Novo Abastecimento
                     </h4>
-                    <X size={18} color="#71717A" style={{ cursor: 'pointer' }} onClick={() => setModalTipo(null)} />
+                    <X size={18} color={Zinc400} style={{ cursor: 'pointer' }} onClick={() => setModalAberto(null)} />
                   </div>
 
                   <div style={{ display: 'flex', gap: '6px' }}>
                     {['Gasolina', 'Etanol', 'Diesel'].map((t) => (
                       <button
                         key={t}
-                        onClick={() => setTipoCombustivel(t)}
+                        onClick={() => setCombustivelSel(t)}
                         style={{
                           flex: 1,
                           padding: '6px 0',
                           borderRadius: '8px',
-                          border: tipoCombustivel === t ? '1px solid #E11D48' : '1px solid #27272A',
-                          background: tipoCombustivel === t ? '#E11D48' : '#09090B',
-                          color: '#FAFAFA',
+                          border: combustivelSel === t ? `1px solid ${Crimson600}` : `1px solid ${Zinc800}`,
+                          background: combustivelSel === t ? Crimson600 : Zinc950,
+                          color: Zinc50,
                           fontSize: '0.68rem',
                           fontWeight: 700,
                           cursor: 'pointer'
@@ -1068,121 +1215,147 @@ export const GaragemPage: React.FC = () => {
                     ))}
                   </div>
 
-                  <input
-                    type="number"
-                    value={litros}
-                    onChange={(e) => setLitros(e.target.value)}
-                    placeholder="Litros (ex: 42.0)"
-                    style={{ background: '#09090B', border: '1px solid #27272A', borderRadius: '10px', padding: '10px', color: '#fff', fontSize: '0.8rem' }}
-                  />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <input
+                      type="number"
+                      value={litrosInput}
+                      onChange={(e) => setLitrosInput(e.target.value)}
+                      placeholder="Litros (ex: 42.0)"
+                      style={{ background: Zinc950, border: `1px solid ${Zinc800}`, borderRadius: '10px', padding: '9px', color: '#fff', fontSize: '0.75rem' }}
+                    />
+                    <input
+                      type="number"
+                      value={precoInput}
+                      onChange={(e) => setPrecoInput(e.target.value)}
+                      placeholder="Preço/Litro R$"
+                      style={{ background: Zinc950, border: `1px solid ${Zinc800}`, borderRadius: '10px', padding: '9px', color: '#fff', fontSize: '0.75rem' }}
+                    />
+                  </div>
 
                   <input
-                    type="number"
-                    value={precoLitro}
-                    onChange={(e) => setPrecoLitro(e.target.value)}
-                    placeholder="Preço/Litro R$"
-                    style={{ background: '#09090B', border: '1px solid #27272A', borderRadius: '10px', padding: '10px', color: '#fff', fontSize: '0.8rem' }}
+                    type="text"
+                    value={kmInput}
+                    onChange={(e) => setKmInput(e.target.value)}
+                    placeholder="KM no Painel (ex: 48.450)"
+                    style={{ background: Zinc950, border: `1px solid ${Zinc800}`, borderRadius: '10px', padding: '9px', color: '#fff', fontSize: '0.75rem' }}
                   />
+
+                  <div
+                    onClick={() => setTanqueCheio(!tanqueCheio)}
+                    style={{ background: Zinc950, border: `1px solid ${Zinc800}`, borderRadius: '10px', padding: '8px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                  >
+                    <span style={{ fontSize: '0.68rem', color: Zinc300 }}>Tanque Cheio (Calcular Média):</span>
+                    <strong style={{ fontSize: '0.68rem', color: tanqueCheio ? Emerald400 : Zinc500 }}>{tanqueCheio ? 'SIM' : 'NÃO'}</strong>
+                  </div>
 
                   <button
-                    onClick={handleSalvarAbastecer}
-                    style={{ background: '#E11D48', color: '#fff', border: 'none', borderRadius: '10px', padding: '11px', fontWeight: 800, cursor: 'pointer', fontSize: '0.8rem' }}
+                    onClick={handleSalvarAbastecimento}
+                    style={{ background: Crimson600, color: '#fff', border: 'none', borderRadius: '12px', padding: '11px', fontWeight: 800, cursor: 'pointer', fontSize: '0.8rem' }}
                   >
                     Confirmar Abastecimento
                   </button>
                 </div>
               )}
 
-              {/* MODAL BOTTOMSHEET: NOVA MANUTENÇÃO */}
-              {modalTipo === 'manutencao' && (
+              {/* MODAL 2: NOVA MANUTENÇÃO */}
+              {modalAberto === 'novaManut' && (
                 <div style={{
                   position: 'absolute',
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  background: '#18181B',
+                  background: Zinc900,
                   borderTopLeftRadius: '24px',
                   borderTopRightRadius: '24px',
-                  borderTop: '2px solid #38BDF8',
-                  padding: '18px 16px 26px',
+                  borderTop: `2px solid ${Sky400}`,
+                  padding: '16px 16px 24px',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '10px',
                   zIndex: 90,
-                  boxShadow: '0 -10px 40px rgba(0,0,0,0.8)'
+                  boxShadow: '0 -10px 40px rgba(0,0,0,0.85)'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h4 style={{ color: '#FAFAFA', fontSize: '0.95rem', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Wrench size={16} color="#38BDF8" /> Registrar Manutenção
+                    <h4 style={{ color: Zinc50, fontSize: '0.95rem', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Wrench size={17} color={Sky400} /> Registrar Manutenção
                     </h4>
-                    <X size={18} color="#71717A" style={{ cursor: 'pointer' }} onClick={() => setModalTipo(null)} />
+                    <X size={18} color={Zinc400} style={{ cursor: 'pointer' }} onClick={() => setModalAberto(null)} />
                   </div>
 
                   <input
                     type="text"
                     value={manutDesc}
                     onChange={(e) => setManutDesc(e.target.value)}
-                    placeholder="Serviço ou Peça"
-                    style={{ background: '#09090B', border: '1px solid #27272A', borderRadius: '10px', padding: '10px', color: '#fff', fontSize: '0.8rem' }}
+                    placeholder="Descrição do Serviço ou Peça"
+                    style={{ background: Zinc950, border: `1px solid ${Zinc800}`, borderRadius: '10px', padding: '9px', color: '#fff', fontSize: '0.75rem' }}
                   />
 
-                  <input
-                    type="number"
-                    value={manutValor}
-                    onChange={(e) => setManutValor(e.target.value)}
-                    placeholder="Valor Total R$"
-                    style={{ background: '#09090B', border: '1px solid #27272A', borderRadius: '10px', padding: '10px', color: '#fff', fontSize: '0.8rem' }}
-                  />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <input
+                      type="number"
+                      value={manutPecas}
+                      onChange={(e) => setManutPecas(e.target.value)}
+                      placeholder="Valor Peças R$"
+                      style={{ background: Zinc950, border: `1px solid ${Zinc800}`, borderRadius: '10px', padding: '9px', color: '#fff', fontSize: '0.75rem' }}
+                    />
+                    <input
+                      type="number"
+                      value={manutMaoObra}
+                      onChange={(e) => setManutMaoObra(e.target.value)}
+                      placeholder="Mão de Obra R$"
+                      style={{ background: Zinc950, border: `1px solid ${Zinc800}`, borderRadius: '10px', padding: '9px', color: '#fff', fontSize: '0.75rem' }}
+                    />
+                  </div>
 
                   <button
                     onClick={handleSalvarManutencao}
-                    style={{ background: '#38BDF8', color: '#09090B', border: 'none', borderRadius: '10px', padding: '11px', fontWeight: 800, cursor: 'pointer', fontSize: '0.8rem' }}
+                    style={{ background: Sky400, color: Zinc950, border: 'none', borderRadius: '12px', padding: '11px', fontWeight: 800, cursor: 'pointer', fontSize: '0.8rem' }}
                   >
                     Salvar na Garagem
                   </button>
                 </div>
               )}
 
-              {/* MODAL CHAT GEMINI IA */}
-              {modalTipo === 'gemini' && (
+              {/* MODAL 3: MECÂNICO IA GEMINI */}
+              {modalAberto === 'chatGemini' && (
                 <div style={{
                   position: 'absolute',
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  top: '120px',
-                  background: '#09090B',
+                  top: '115px',
+                  background: Zinc950,
                   borderTopLeftRadius: '24px',
                   borderTopRightRadius: '24px',
-                  borderTop: '2px solid #E11D48',
+                  borderTop: `2px solid ${Crimson600}`,
                   padding: '16px',
                   display: 'flex',
                   flexDirection: 'column',
                   zIndex: 95,
-                  boxShadow: '0 -10px 40px rgba(0,0,0,0.85)'
+                  boxShadow: '0 -10px 40px rgba(0,0,0,0.9)'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1F1F23', paddingBottom: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${Zinc850}`, paddingBottom: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(225,29,72,0.2)', border: '1px solid #E11D48', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Sparkles size={14} color="#F43F5E" />
+                      <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(225,29,72,0.2)', border: `1px solid ${Crimson600}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Sparkles size={14} color={Crimson500} />
                       </div>
                       <div>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#FAFAFA' }}>Mecânico Virtual IA</div>
-                        <div style={{ fontSize: '0.55rem', color: '#10B981' }}>● Online via Gemini SDK</div>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 800, color: Zinc50 }}>Mecânico Virtual IA</div>
+                        <div style={{ fontSize: '0.55rem', color: Emerald500 }}>● Online via Gemini SDK</div>
                       </div>
                     </div>
-                    <X size={18} color="#71717A" style={{ cursor: 'pointer' }} onClick={() => setModalTipo(null)} />
+                    <X size={18} color={Zinc400} style={{ cursor: 'pointer' }} onClick={() => setModalAberto(null)} />
                   </div>
 
                   <div style={{ flex: 1, overflowY: 'auto', padding: '10px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {chatMsgs.map((m, idx) => (
+                    {chatMensagens.map((m, idx) => (
                       <div
                         key={idx}
                         style={{
                           alignSelf: m.remetente === 'user' ? 'flex-end' : 'flex-start',
-                          background: m.remetente === 'user' ? '#E11D48' : '#18181B',
-                          color: '#FAFAFA',
-                          border: m.remetente === 'user' ? 'none' : '1px solid #27272A',
+                          background: m.remetente === 'user' ? Crimson600 : Zinc900,
+                          color: Zinc50,
+                          border: m.remetente === 'user' ? 'none' : `1px solid ${Zinc800}`,
                           padding: '8px 10px',
                           borderRadius: m.remetente === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
                           fontSize: '0.68rem',
@@ -1195,18 +1368,18 @@ export const GaragemPage: React.FC = () => {
                     ))}
                   </div>
 
-                  <div style={{ display: 'flex', gap: '6px', paddingTop: '8px', borderTop: '1px solid #1F1F23' }}>
+                  <div style={{ display: 'flex', gap: '6px', paddingTop: '8px', borderTop: `1px solid ${Zinc850}` }}>
                     <input
                       type="text"
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleEnviarChat()}
+                      value={chatTexto}
+                      onChange={(e) => setChatTexto(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleEnviarMensagemChat()}
                       placeholder="Descreva o barulho ou dúvida..."
-                      style={{ flex: 1, background: '#18181B', border: '1px solid #27272A', borderRadius: '10px', padding: '8px 10px', color: '#fff', fontSize: '0.72rem' }}
+                      style={{ flex: 1, background: Zinc900, border: `1px solid ${Zinc800}`, borderRadius: '10px', padding: '8px 10px', color: '#fff', fontSize: '0.72rem' }}
                     />
                     <button
-                      onClick={handleEnviarChat}
-                      style={{ background: '#E11D48', color: '#fff', border: 'none', borderRadius: '10px', padding: '8px 12px', cursor: 'pointer' }}
+                      onClick={handleEnviarMensagemChat}
+                      style={{ background: Crimson600, color: '#fff', border: 'none', borderRadius: '10px', padding: '8px 12px', cursor: 'pointer' }}
                     >
                       <Send size={14} />
                     </button>
@@ -1214,17 +1387,17 @@ export const GaragemPage: React.FC = () => {
                 </div>
               )}
 
-              {/* MODAL SHEET DE AÇÕES RÁPIDAS (COMMAND SHEET) */}
-              {modalTipo === 'sheetAcoes' && (
+              {/* MODAL 4: ACTION SHEET GERAL */}
+              {modalAberto === 'sheetAcoes' && (
                 <div style={{
                   position: 'absolute',
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  background: '#18181B',
+                  background: Zinc900,
                   borderTopLeftRadius: '24px',
                   borderTopRightRadius: '24px',
-                  borderTop: '2px solid #E11D48',
+                  borderTop: `2px solid ${Crimson600}`,
                   padding: '18px 16px 26px',
                   display: 'flex',
                   flexDirection: 'column',
@@ -1232,52 +1405,52 @@ export const GaragemPage: React.FC = () => {
                   zIndex: 90
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h4 style={{ color: '#FAFAFA', fontSize: '0.95rem', margin: 0 }}>Ações Rápidas</h4>
-                    <X size={18} color="#71717A" style={{ cursor: 'pointer' }} onClick={() => setModalTipo(null)} />
+                    <h4 style={{ color: Zinc50, fontSize: '0.95rem', margin: 0 }}>Ações Rápidas</h4>
+                    <X size={18} color={Zinc400} style={{ cursor: 'pointer' }} onClick={() => setModalAberto(null)} />
                   </div>
 
                   <div
-                    onClick={() => setModalTipo('abastecer')}
-                    style={{ background: '#09090B', border: '1px solid #27272A', borderRadius: '12px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+                    onClick={() => setModalAberto('novoAbast')}
+                    style={{ background: Zinc950, border: `1px solid ${Zinc800}`, borderRadius: '14px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
                   >
-                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Fuel size={16} color="#FBBF24" />
+                    <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Fuel size={17} color={Amber400} />
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#FAFAFA' }}>Novo Abastecimento</div>
-                      <div style={{ fontSize: '0.58rem', color: '#71717A' }}>Litros, leitura da bomba e média km/L</div>
-                    </div>
-                  </div>
-
-                  <div
-                    onClick={() => setModalTipo('manutencao')}
-                    style={{ background: '#09090B', border: '1px solid #27272A', borderRadius: '12px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
-                  >
-                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(14,165,233,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Wrench size={16} color="#38BDF8" />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#FAFAFA' }}>Nova Manutenção</div>
-                      <div style={{ fontSize: '0.58rem', color: '#71717A' }}>Óleo, pneus, pastilhas e cupons fiscais</div>
+                      <div style={{ fontSize: '0.78rem', fontWeight: 800, color: Zinc50 }}>Novo Abastecimento</div>
+                      <div style={{ fontSize: '0.6rem', color: Zinc400 }}>Litros, leitura da bomba e média km/L</div>
                     </div>
                   </div>
 
                   <div
-                    onClick={() => setModalTipo('gemini')}
-                    style={{ background: '#09090B', border: '1px solid #27272A', borderRadius: '12px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+                    onClick={() => setModalAberto('novaManut')}
+                    style={{ background: Zinc950, border: `1px solid ${Zinc800}`, borderRadius: '14px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
                   >
-                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(225,29,72,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Sparkles size={16} color="#F43F5E" />
+                    <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'rgba(14,165,233,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Wrench size={17} color={Sky400} />
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#FAFAFA' }}>Consultar Mecânico IA</div>
-                      <div style={{ fontSize: '0.58rem', color: '#71717A' }}>Diagnóstico inteligente com Google Gemini</div>
+                      <div style={{ fontSize: '0.78rem', fontWeight: 800, color: Zinc50 }}>Nova Manutenção</div>
+                      <div style={{ fontSize: '0.6rem', color: Zinc400 }}>Óleo, pneus, pastilhas e cupons fiscais</div>
+                    </div>
+                  </div>
+
+                  <div
+                    onClick={() => setModalAberto('chatGemini')}
+                    style={{ background: Zinc950, border: `1px solid ${Zinc800}`, borderRadius: '14px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+                  >
+                    <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'rgba(225,29,72,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Sparkles size={17} color={Crimson500} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.78rem', fontWeight: 800, color: Zinc50 }}>Consultar Mecânico IA</div>
+                      <div style={{ fontSize: '0.6rem', color: Zinc400 }}>Diagnóstico inteligente com Google Gemini</div>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* 5. Floating Navigation Bar (Estilo v2.0 - 5 Ações com Botão Central) */}
+              {/* 5. Floating Navigation Bar (Fiel ao MainActivity.kt - 5 Ações com Botão Central) */}
               <nav style={{
                 position: 'absolute',
                 bottom: '10px',
@@ -1285,7 +1458,7 @@ export const GaragemPage: React.FC = () => {
                 right: '16px',
                 background: 'rgba(24, 24, 27, 0.95)',
                 backdropFilter: 'blur(16px)',
-                border: '1px solid #27272A',
+                border: `1px solid ${Zinc800}`,
                 borderRadius: '24px',
                 height: '56px',
                 display: 'flex',
@@ -1295,26 +1468,27 @@ export const GaragemPage: React.FC = () => {
                 zIndex: 80
               }}>
                 <button
-                  style={{ background: 'none', border: 'none', color: '#E11D48', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', fontSize: '0.62rem', fontWeight: 700, cursor: 'pointer' }}
+                  onClick={() => setRotaAtual('garagem')}
+                  style={{ background: 'none', border: 'none', color: rotaAtual === 'garagem' ? Crimson600 : Zinc400, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', fontSize: '0.62rem', fontWeight: rotaAtual === 'garagem' ? 800 : 500, cursor: 'pointer' }}
                 >
                   <Car size={18} /> Garagem
                 </button>
 
                 <button
-                  onClick={() => alert('Finanças: Gráficos de despesas por mês e cálculo de custo por km rodado')}
-                  style={{ background: 'none', border: 'none', color: '#A1A1AA', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', fontSize: '0.62rem', cursor: 'pointer' }}
+                  onClick={() => setRotaAtual('financas')}
+                  style={{ background: 'none', border: 'none', color: rotaAtual === 'financas' ? Crimson600 : Zinc400, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', fontSize: '0.62rem', fontWeight: rotaAtual === 'financas' ? 800 : 500, cursor: 'pointer' }}
                 >
                   <TrendingUp size={18} /> Finanças
                 </button>
 
                 {/* Botão Central Command Mecânico IA */}
                 <button
-                  onClick={() => setModalTipo('gemini')}
+                  onClick={() => setModalAberto('chatGemini')}
                   style={{
                     width: '42px',
                     height: '42px',
                     borderRadius: '13px',
-                    background: 'linear-gradient(135deg, #E11D48, #F43F5E)',
+                    background: `linear-gradient(135deg, ${Crimson600}, ${Crimson500})`,
                     border: '1px solid rgba(255,255,255,0.25)',
                     display: 'flex',
                     alignItems: 'center',
@@ -1329,15 +1503,15 @@ export const GaragemPage: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => setModalTipo('sheetAcoes')}
-                  style={{ background: 'none', border: 'none', color: '#A1A1AA', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', fontSize: '0.62rem', cursor: 'pointer' }}
+                  onClick={() => setModalAberto('sheetAcoes')}
+                  style={{ background: 'none', border: 'none', color: Zinc400, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', fontSize: '0.62rem', cursor: 'pointer' }}
                 >
                   <Plus size={18} /> Ações
                 </button>
 
                 <button
-                  onClick={() => alert('Configurações: Preferências de sistema, biometria e sincronização em nuvem')}
-                  style={{ background: 'none', border: 'none', color: '#A1A1AA', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', fontSize: '0.62rem', cursor: 'pointer' }}
+                  onClick={() => setRotaAtual('ajustes')}
+                  style={{ background: 'none', border: 'none', color: rotaAtual === 'ajustes' ? Crimson600 : Zinc400, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', fontSize: '0.62rem', fontWeight: rotaAtual === 'ajustes' ? 800 : 500, cursor: 'pointer' }}
                 >
                   <Settings size={18} /> Ajustes
                 </button>
@@ -1347,7 +1521,7 @@ export const GaragemPage: React.FC = () => {
         </section>
 
         {/* Caixa de Feedback Híbrida */}
-        <FeedbackSection appId="garagem" appName="Garagem App" corTema="#E11D48" />
+        <FeedbackSection appId="garagem" appName="Garagem App" corTema={Crimson600} />
       </main>
     </>
   );
