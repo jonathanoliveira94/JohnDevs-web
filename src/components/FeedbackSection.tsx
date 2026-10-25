@@ -149,20 +149,29 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
       console.error('Erro ao salvar no Firestore:', firebaseErr);
     }
 
-    // 3. Notificação opcional por email via Web3Forms
+    // 3. Notificação instantânea por email via FormSubmit para o Jonathan
     try {
-      fetch('https://api.web3forms.com/submit', {
+      fetch('https://formsubmit.co/ajax/jonathan.oliveira94@gmail.com', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({
-          access_key: 'b94df400-0e12-4045-9ec4-c4819ad5d117',
-          subject: `Novo Feedback sobre o ${appName} (John Dev's)`,
-          from_name: nome,
-          email: email || 'sem-email@visitante.com',
-          message: `App: ${appName}\nAvaliação: ${estrelas} estrelas\nComentário: ${mensagem}`
+          _subject: `🚗 [John Dev's] Novo comentário sobre o ${appName}!`,
+          _template: 'table',
+          _captcha: 'false',
+          Nome: nome.trim(),
+          Email_Visitante: email.trim() || 'Não informado',
+          Aplicativo: appName,
+          Nota: `${estrelas} de 5 estrelas`,
+          Data_Hora: `${hoje} às ${new Date().toLocaleTimeString('pt-BR')}`,
+          Comentario: mensagem.trim()
         })
       });
-    } catch {}
+    } catch (emailErr) {
+      console.warn('Erro ao disparar FormSubmit:', emailErr);
+    }
 
     setEnviando(false);
     setSucesso(true);
